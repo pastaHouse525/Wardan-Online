@@ -619,11 +619,6 @@ function AppointmentsSection() {
               <Input placeholder="وردان - الجيزة" value={form.clinicLocation}
                 onChange={(e) => setForm({ ...form, clinicLocation: e.target.value })} />
             </div>
-            <div className="space-y-1.5">
-              <Label>رسوم الكشف</Label>
-              <Input type="number" placeholder="0" value={form.consultationFee}
-                onChange={(e) => setForm({ ...form, consultationFee: e.target.value })} />
-            </div>
             <div className="flex items-end">
               <Button type="submit" className="w-full gap-2" disabled={createMutation.isPending} data-testid="button-save-doctor">
                 {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -654,9 +649,6 @@ function AppointmentsSection() {
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                   {appt.clinicLocation && (
                     <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{appt.clinicLocation}</span>
-                  )}
-                  {appt.consultationFee != null && (
-                    <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{appt.consultationFee} جنيه</span>
                   )}
                 </div>
               </div>

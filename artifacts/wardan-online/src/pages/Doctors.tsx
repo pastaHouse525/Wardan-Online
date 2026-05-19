@@ -47,13 +47,6 @@ export default function Doctors() {
                     </div>
                   )}
 
-                  {doctor.consultationFee && (
-                    <div className="flex items-center gap-2 text-primary font-semibold mb-4">
-                      <DollarSign className="h-4 w-4" />
-                      <span>{Number(doctor.consultationFee).toLocaleString("ar-EG")} جنيه</span>
-                    </div>
-                  )}
-
                   <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" data-testid={`button-doctor-whatsapp-${doctor.id}`}>
                     <Button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white gap-2">
                       <MessageCircle className="h-4 w-4" />
