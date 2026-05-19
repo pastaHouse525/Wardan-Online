@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import {
   LayoutDashboard, List, Clock, CheckCircle, XCircle, Tag,
-  Stethoscope, Trash2, Check, X, LogOut, Star, StarOff,
-  Menu, ChevronLeft, Plus, Phone, MapPin, DollarSign,
+  Stethoscope, Trash2, Check, X, LogOut, Star,
+  Menu, ChevronLeft, Plus, MapPin, DollarSign,
   AlertCircle, Loader2, Search, MessageCircle,
+  Shield, UserPlus, KeyRound, Eye, EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,10 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { getAdminToken, adminLogout, isAdminLoggedIn } from "@/lib/adminAuth";
+import {
+  getAdminToken, adminLogout, isAdminLoggedIn,
+  inviteAdmin, changeAdminPassword, authFetch,
+} from "@/lib/adminAuth";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -33,12 +37,7 @@ function authHeaders() {
 }
 
 async function apiFetch(path: string, method = "GET", body?: object) {
-  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-  const res = await fetch(`${base}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const res = await authFetch(path, method, body);
   if (res.status === 204) return null;
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Error");
   return res.json();
@@ -74,14 +73,15 @@ const CAT_BAR_COLORS: Record<string, string> = {
 
 // ─── nav config ──────────────────────────────────────────────────────────────
 
-type Section = "overview" | "pending" | "listings" | "categories" | "appointments";
+type Section = "overview" | "pending" | "listings" | "categories" | "appointments" | "users";
 
 const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
-  { id: "overview",     label: "نظرة عامة",   icon: <LayoutDashboard className="h-5 w-5" /> },
+  { id: "overview",     label: "نظرة عامة",       icon: <LayoutDashboard className="h-5 w-5" /> },
   { id: "pending",      label: "بانتظار الموافقة", icon: <Clock className="h-5 w-5" /> },
-  { id: "listings",     label: "كل الإعلانات", icon: <List className="h-5 w-5" /> },
-  { id: "categories",   label: "التصنيفات",    icon: <Tag className="h-5 w-5" /> },
-  { id: "appointments", label: "المواعيد الطبية", icon: <Stethoscope className="h-5 w-5" /> },
+  { id: "listings",     label: "كل الإعلانات",     icon: <List className="h-5 w-5" /> },
+  { id: "categories",   label: "التصنيفات",        icon: <Tag className="h-5 w-5" /> },
+  { id: "appointments", label: "المواعيد الطبية",  icon: <Stethoscope className="h-5 w-5" /> },
+  { id: "users",        label: "المسؤولون",        icon: <Shield className="h-5 w-5" /> },
 ];
 
 // ─── sub-components ───────────────────────────────────────────────────────────
@@ -685,6 +685,258 @@ function AppointmentsSection() {
   );
 }
 
+// ─── Admin Users section ──────────────────────────────────────────────────────
+
+function AdminUsersSection() {
+  const { toast } = useToast();
+  const [users, setUsers] = useState<{ id: number; email: string; role: string; created_at: string }[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [deletingId, setDeletingId]     = useState<number | null>(null);
+
+  // Invite form
+  const [showInvite, setShowInvite]     = useState(false);
+  const [inviteEmail, setInviteEmail]   = useState("");
+  const [invitePass, setInvitePass]     = useState("");
+  const [showInvitePass, setShowInvitePass] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError]   = useState<string | null>(null);
+
+  // Change-password form
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [newPw, setNewPw]               = useState("");
+  const [confirmPw, setConfirmPw]       = useState("");
+  const [showNewPw, setShowNewPw]       = useState(false);
+  const [changePwLoading, setChangePwLoading] = useState(false);
+  const [changePwError, setChangePwError]     = useState<string | null>(null);
+
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const data = await apiFetch("/api/admin/users");
+      setUsers(data ?? []);
+    } catch {
+      toast({ title: "حدث خطأ في تحميل المستخدمين", variant: "destructive" });
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  useEffect(() => { loadUsers(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteError(null);
+    setInviteLoading(true);
+    try {
+      await inviteAdmin(inviteEmail, invitePass);
+      toast({ title: "✅ تمت إضافة المسؤول بنجاح" });
+      setInviteEmail(""); setInvitePass("");
+      setShowInvite(false);
+      loadUsers();
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : "حدث خطأ");
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("هل أنت متأكد من حذف هذا المسؤول؟")) return;
+    setDeletingId(id);
+    try {
+      await apiFetch(`/api/admin/users/${id}`, "DELETE");
+      toast({ title: "تم حذف المسؤول" });
+      loadUsers();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "حدث خطأ", variant: "destructive" });
+    } finally {
+      setDeletingId(null); }
+  };
+
+  const handleChangePw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePwError(null);
+    if (newPw !== confirmPw) { setChangePwError("كلمتا المرور غير متطابقتين"); return; }
+    if (newPw.length < 8) { setChangePwError("كلمة المرور يجب أن تكون 8 أحرف على الأقل"); return; }
+    setChangePwLoading(true);
+    try {
+      await changeAdminPassword(newPw);
+      toast({ title: "✅ تم تغيير كلمة المرور بنجاح" });
+      setNewPw(""); setConfirmPw(""); setShowChangePw(false);
+    } catch (err) {
+      setChangePwError(err instanceof Error ? err.message : "حدث خطأ");
+    } finally {
+      setChangePwLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">المسؤولون</h2>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowChangePw(!showChangePw)}>
+            <KeyRound className="h-4 w-4" />
+            {showChangePw ? "إلغاء" : "تغيير كلمة المرور"}
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={() => setShowInvite(!showInvite)} data-testid="button-invite-admin">
+            <UserPlus className="h-4 w-4" />
+            {showInvite ? "إلغاء" : "إضافة مسؤول"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Change own password */}
+      {showChangePw && (
+        <div className="bg-card rounded-2xl border p-6">
+          <h3 className="font-bold mb-4 flex items-center gap-2"><KeyRound className="h-4 w-4" /> تغيير كلمة المرور</h3>
+          <form onSubmit={handleChangePw} className="space-y-4 max-w-sm">
+            <div className="space-y-1.5">
+              <Label>كلمة المرور الجديدة</Label>
+              <div className="relative">
+                <Input
+                  type={showNewPw ? "text" : "password"}
+                  placeholder="8 أحرف على الأقل"
+                  dir="ltr"
+                  className="h-10 pl-10"
+                  value={newPw}
+                  onChange={(e) => setNewPw(e.target.value)}
+                  required minLength={8}
+                  data-testid="input-new-password"
+                />
+                <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  onClick={() => setShowNewPw(!showNewPw)}>
+                  {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>تأكيد كلمة المرور</Label>
+              <Input
+                type={showNewPw ? "text" : "password"}
+                placeholder="أعد الإدخال"
+                dir="ltr"
+                className="h-10"
+                value={confirmPw}
+                onChange={(e) => setConfirmPw(e.target.value)}
+                required
+                data-testid="input-confirm-password"
+              />
+            </div>
+            {changePwError && (
+              <div className="bg-destructive/10 text-destructive text-sm rounded-xl px-3 py-2 border border-destructive/20">
+                ⚠️ {changePwError}
+              </div>
+            )}
+            <Button type="submit" className="gap-2" disabled={changePwLoading} data-testid="button-save-password">
+              {changePwLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+              حفظ كلمة المرور
+            </Button>
+          </form>
+        </div>
+      )}
+
+      {/* Invite new admin */}
+      {showInvite && (
+        <div className="bg-card rounded-2xl border p-6">
+          <h3 className="font-bold mb-4 flex items-center gap-2"><UserPlus className="h-4 w-4" /> إضافة مسؤول جديد</h3>
+          <form onSubmit={handleInvite} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>البريد الإلكتروني</Label>
+              <Input
+                type="email" dir="ltr" placeholder="admin@example.com" className="h-10"
+                value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
+                required data-testid="input-invite-email"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>كلمة المرور</Label>
+              <div className="relative">
+                <Input
+                  type={showInvitePass ? "text" : "password"}
+                  dir="ltr" placeholder="8 أحرف على الأقل" className="h-10 pl-10"
+                  value={invitePass} onChange={(e) => setInvitePass(e.target.value)}
+                  required minLength={8} data-testid="input-invite-password"
+                />
+                <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  onClick={() => setShowInvitePass(!showInvitePass)}>
+                  {showInvitePass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            {inviteError && (
+              <div className="col-span-full bg-destructive/10 text-destructive text-sm rounded-xl px-3 py-2 border border-destructive/20">
+                ⚠️ {inviteError}
+              </div>
+            )}
+            <div className="col-span-full">
+              <Button type="submit" className="gap-2" disabled={inviteLoading} data-testid="button-save-invite">
+                {inviteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                إضافة المسؤول
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Users list */}
+      {usersLoading ? (
+        <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
+      ) : (
+        <div className="bg-card rounded-2xl border overflow-hidden">
+          {users.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Shield className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p>لا يوجد مسؤولون</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  <th className="text-right p-3 font-semibold text-muted-foreground">البريد الإلكتروني</th>
+                  <th className="text-right p-3 font-semibold text-muted-foreground hidden sm:table-cell">الدور</th>
+                  <th className="text-right p-3 font-semibold text-muted-foreground hidden md:table-cell">تاريخ الإضافة</th>
+                  <th className="p-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {users.map((u) => (
+                  <tr key={u.id} className="hover:bg-muted/30 transition-colors" data-testid={`row-admin-${u.id}`}>
+                    <td className="p-3 font-mono text-sm">{u.email}</td>
+                    <td className="p-3 hidden sm:table-cell">
+                      <Badge className="bg-primary/10 text-primary hover:bg-primary/10 text-xs">{u.role}</Badge>
+                    </td>
+                    <td className="p-3 text-muted-foreground text-xs hidden md:table-cell">
+                      {new Date(u.created_at).toLocaleDateString("ar-SA")}
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => handleDelete(u.id)}
+                        disabled={deletingId === u.id}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        data-testid={`button-delete-admin-${u.id}`}
+                      >
+                        {deletingId === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <div className="px-4 py-3 border-t text-xs text-muted-foreground">
+            {users.length} مسؤول مسجل
+          </div>
+        </div>
+      )}
+
+      <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4 text-sm text-blue-700">
+        <strong>ملاحظة أمان:</strong> كلمات المرور مشفرة ومحفوظة في Supabase Auth فقط. لا يمكن لأحد رؤيتها.
+      </div>
+    </div>
+  );
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 export default function Admin() {
@@ -824,6 +1076,7 @@ export default function Admin() {
             {section === "listings"     && <AllListingsSection onInvalidate={invalidateAll} />}
             {section === "categories"   && <CategoriesSection />}
             {section === "appointments" && <AppointmentsSection />}
+            {section === "users"        && <AdminUsersSection />}
           </div>
         </main>
       </div>

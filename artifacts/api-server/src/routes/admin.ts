@@ -216,10 +216,85 @@ router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+    // Prevent deleting the last admin
+    const countRow = await queryOne<{ count: string }>("SELECT COUNT(*) FROM admin_users");
+    if (parseInt(countRow?.count ?? "0", 10) <= 1) {
+      return res.status(400).json({ error: "لا يمكن حذف المسؤول الأخير" });
+    }
+
     await query("DELETE FROM admin_users WHERE id = $1", [id]);
     res.status(204).send();
   } catch (err) {
     req.log.error({ err }, "Failed to delete admin user");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST /admin/users/invite — create a new admin (Supabase Auth + local table)
+router.post("/admin/users/invite", requireAdmin, async (req, res) => {
+  try {
+    const { email, password } = req.body as { email?: string; password?: string };
+    if (!email || !password) {
+      return res.status(400).json({ error: "email and password are required" });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
+    }
+
+    const { getServerSupabase } = await import("../lib/supabase");
+    const supabase = getServerSupabase();
+
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: email.toLowerCase().trim(),
+      password,
+      email_confirm: true,
+    });
+
+    if (authError && !authError.message.toLowerCase().includes("already registered")) {
+      return res.status(400).json({ error: authError.message });
+    }
+
+    const row = await queryOne(
+      "INSERT INTO admin_users (email, role) VALUES ($1, 'admin') ON CONFLICT (email) DO NOTHING RETURNING *",
+      [email.toLowerCase().trim()]
+    );
+
+    if (!row) {
+      return res.status(409).json({ error: "هذا البريد الإلكتروني مسؤول بالفعل" });
+    }
+
+    res.status(201).json({ success: true, user: row, supabaseId: authData?.user?.id ?? null });
+  } catch (err) {
+    req.log.error({ err }, "Invite admin failed");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// PATCH /admin/users/change-password — change logged-in admin's own password
+router.patch("/admin/users/change-password", requireAdmin, async (req, res) => {
+  try {
+    const token = req.headers["authorization"]?.slice(7) ?? "";
+    const { newPassword } = req.body as { newPassword?: string };
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
+    }
+
+    const { getServerSupabase } = await import("../lib/supabase");
+    const supabase = getServerSupabase();
+
+    // Identify the caller
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { error } = await supabase.auth.admin.updateUserById(user.id, { password: newPassword });
+    if (error) return res.status(400).json({ error: error.message });
+
+    res.json({ success: true });
+  } catch (err) {
+    req.log.error({ err }, "Change password failed");
     res.status(500).json({ error: "Internal server error" });
   }
 });

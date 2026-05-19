@@ -64,8 +64,10 @@ Arabic-language marketplace website with RTL layout, covering 7 categories and a
 
 ## Admin Login
 
-- Default admin credentials: `admin@wardan.com` / `WardanAdmin2024!`
-- To add more admins: insert email into `admin_users` table AND create user in Supabase Auth dashboard
+- First-run: visit `/admin/setup` to create the initial admin account (only works when no admins exist)
+- After setup: log in at `/admin/login` with the credentials you chose
+- To add more admins: use the **المسؤولون** section inside the admin dashboard (invite by email + password)
+- To reset a forgotten password: use the "نسيت كلمة المرور؟" link on the login page — it generates a one-time Supabase recovery link
 - `requireAdmin` middleware verifies Supabase JWT + checks `admin_users` table in local DB
 
 ## Gotchas

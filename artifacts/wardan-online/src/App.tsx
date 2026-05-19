@@ -15,6 +15,7 @@ import Doctors from "@/pages/Doctors";
 import Search from "@/pages/Search";
 import Admin from "@/pages/Admin";
 import AdminLogin from "@/pages/AdminLogin";
+import AdminSetup from "@/pages/AdminSetup";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +38,7 @@ function Router() {
           <Route path="/add-listing" component={AddListing} />
           <Route path="/doctors" component={Doctors} />
           <Route path="/search" component={Search} />
+          <Route path="/admin/setup" component={AdminSetup} />
           <Route path="/admin/login" component={AdminLogin} />
           <Route path="/admin" component={Admin} />
           <Route component={NotFound} />
