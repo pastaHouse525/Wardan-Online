@@ -49,9 +49,9 @@ const categories = [
 ];
 
 const egyptCities = [
-  "وردان", "منوف", "شبين الكوم", "المنوفية", "بركة السبع",
-  "أشمون", "السادات", "القاهرة", "الإسكندرية", "الجيزة",
-  "طنطا", "المنصورة", "الزقازيق", "دمياط", "بني سويف",
+  "الجيزة", "وردان", "6 أكتوبر", "الشيخ زايد", "العمرانية",
+  "الهرم", "كرداسة", "أبو النمرس", "البدرشين", "الصف",
+  "القاهرة", "الإسكندرية", "طنطا", "المنصورة", "دمياط",
 ];
 
 interface UploadedImage {
@@ -84,7 +84,7 @@ export default function AddListing() {
     resolver: zodResolver(schema),
     defaultValues: {
       titleAr: "", categorySlug: "", descriptionAr: "",
-      price: "", priceUnit: "جنيه", city: "وردان", location: "",
+      price: "", priceUnit: "جنيه", city: "الجيزة", location: "",
       sellerName: "", phoneNumber: "", whatsappNumber: "",
     },
   });

@@ -616,7 +616,7 @@ function AppointmentsSection() {
             </div>
             <div className="space-y-1.5">
               <Label>موقع العيادة</Label>
-              <Input placeholder="وردان - المنوفية" value={form.clinicLocation}
+              <Input placeholder="وردان - الجيزة" value={form.clinicLocation}
                 onChange={(e) => setForm({ ...form, clinicLocation: e.target.value })} />
             </div>
             <div className="space-y-1.5">
