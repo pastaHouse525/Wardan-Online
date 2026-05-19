@@ -98,7 +98,7 @@ export default function ListingDetail() {
             <div className="flex items-center gap-2 text-primary font-bold text-2xl" data-testid="text-listing-price">
               <DollarSign className="h-6 w-6" />
               <span>{Number(listing.price).toLocaleString("ar-EG")}</span>
-              {listing.priceUnit && <span className="text-base font-normal text-muted-foreground">{listing.priceUnit}</span>}
+              {listing.priceUnit && <span className="text-base font-normal text-muted-foreground">{listing.priceUnit === "EGP" ? "جنيه مصري" : listing.priceUnit}</span>}
             </div>
           )}
 

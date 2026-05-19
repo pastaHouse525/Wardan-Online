@@ -48,10 +48,13 @@ const categories = [
   { slug: "doctors",         nameAr: "مواعيد طبية",  icon: "🩺" },
 ];
 
-const egyptCities = [
-  "الجيزة", "وردان", "6 أكتوبر", "الشيخ زايد", "العمرانية",
-  "الهرم", "كرداسة", "أبو النمرس", "البدرشين", "الصف",
-  "القاهرة", "الإسكندرية", "طنطا", "المنصورة", "دمياط",
+const egyptGovernorates = [
+  "القاهرة", "الجيزة", "الإسكندرية", "القليوبية", "الشرقية",
+  "الدقهلية", "البحيرة", "الغربية", "المنوفية", "كفر الشيخ",
+  "دمياط", "بورسعيد", "الإسماعيلية", "السويس", "شمال سيناء",
+  "جنوب سيناء", "الفيوم", "بني سويف", "المنيا", "أسيوط",
+  "سوهاج", "قنا", "الأقصر", "أسوان", "البحر الأحمر",
+  "الوادي الجديد", "مطروح",
 ];
 
 interface UploadedImage {
@@ -84,7 +87,7 @@ export default function AddListing() {
     resolver: zodResolver(schema),
     defaultValues: {
       titleAr: "", categorySlug: "", descriptionAr: "",
-      price: "", priceUnit: "جنيه", city: "الجيزة", location: "",
+      price: "", priceUnit: "EGP", city: "القاهرة", location: "",
       sellerName: "", phoneNumber: "", whatsappNumber: "",
     },
   });
@@ -321,10 +324,7 @@ export default function AddListing() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="جنيه">جنيه مصري</SelectItem>
-                      <SelectItem value="جنيه/شهر">جنيه / شهر</SelectItem>
-                      <SelectItem value="جنيه/رأس">جنيه / رأس</SelectItem>
-                      <SelectItem value="جنيه/كيلو">جنيه / كيلو</SelectItem>
+                      <SelectItem value="EGP">جنيه مصري</SelectItem>
                       <SelectItem value="للتفاوض">للتفاوض</SelectItem>
                     </SelectContent>
                   </Select>
@@ -348,7 +348,7 @@ export default function AddListing() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="max-h-60">
-                      {egyptCities.map((c) => (
+                      {egyptGovernorates.map((c) => (
                         <SelectItem key={c} value={c}>{c}</SelectItem>
                       ))}
                     </SelectContent>

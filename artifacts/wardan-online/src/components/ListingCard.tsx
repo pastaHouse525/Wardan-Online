@@ -121,7 +121,7 @@ export default function ListingCard({ listing, showStatus = false }: ListingCard
           {listing.price != null && (
             <span className="absolute bottom-2 right-2 bg-primary text-primary-foreground text-sm font-bold px-3 py-1 rounded-full shadow">
               {listing.price.toLocaleString("ar-EG")}
-              {listing.priceUnit && <span className="font-normal text-xs mr-1">{listing.priceUnit}</span>}
+              {listing.priceUnit && <span className="font-normal text-xs mr-1">{listing.priceUnit === "EGP" ? "جنيه مصري" : listing.priceUnit}</span>}
             </span>
           )}
         </div>
