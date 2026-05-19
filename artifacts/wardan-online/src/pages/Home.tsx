@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, Home as HomeIcon, Beef, Bird, Leaf, Shirt, Tv, Stethoscope, Plus, Tag, ArrowLeft } from "lucide-react";
+import { Search, Home as HomeIcon, Beef, Bird, Leaf, Shirt, Tv, Stethoscope, Plus, Tag, ArrowLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListCategories, useListFeaturedListings } from "@workspace/api-client-react";
 import ListingCard from "@/components/ListingCard";
+import EgyptMap from "@/components/EgyptMap";
 
 const categoryIcons: Record<string, React.ReactNode> = {
   "real-estate": <HomeIcon className="h-8 w-8" />,
@@ -30,6 +31,7 @@ const categoryGradients: Record<string, string> = {
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [, setLocation] = useLocation();
+  const [mapGovernorate, setMapGovernorate] = useState<string | null>(null);
 
   const { data: categories, isLoading: categoriesLoading } = useListCategories();
   const { data: featured, isLoading: featuredLoading } = useListFeaturedListings();
@@ -66,6 +68,105 @@ export default function Home() {
               بحث
             </Button>
           </form>
+        </div>
+      </section>
+
+      {/* Map Section */}
+      <section className="max-w-7xl mx-auto px-4 py-12">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-6 w-6 text-primary" />
+            <h2 className="text-2xl font-bold text-foreground">تصفح حسب المحافظة</h2>
+          </div>
+          {mapGovernorate && (
+            <button
+              onClick={() => setMapGovernorate(null)}
+              className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2"
+            >
+              إلغاء التحديد
+            </button>
+          )}
+        </div>
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          <div className="w-full lg:w-80 xl:w-96 shrink-0">
+            <div className="rounded-2xl border bg-card p-3 shadow-sm">
+              <EgyptMap
+                selectedGovernorate={mapGovernorate}
+                onSelectGovernorate={setMapGovernorate}
+                className="w-full"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              انقر على محافظة لاستعراض إعلاناتها
+            </p>
+          </div>
+          <div className="flex-1 w-full">
+            {mapGovernorate ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary font-semibold text-sm px-3 py-1.5 rounded-full">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {mapGovernorate}
+                  </span>
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  اضغط على زر "عرض الإعلانات" لرؤية كل الإعلانات في هذه المحافظة، أو اختر تصنيفاً محدداً من القائمة أدناه.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Link href={`/search?city=${encodeURIComponent(mapGovernorate)}`}>
+                    <Button className="gap-2" data-testid="button-map-view-all">
+                      <Search className="h-4 w-4" />
+                      عرض كل إعلانات {mapGovernorate}
+                    </Button>
+                  </Link>
+                  <Link href={`/category/real-estate?city=${encodeURIComponent(mapGovernorate)}`}>
+                    <Button variant="outline" className="gap-1.5">
+                      <HomeIcon className="h-4 w-4" />
+                      عقارات
+                    </Button>
+                  </Link>
+                  <Link href={`/category/livestock?city=${encodeURIComponent(mapGovernorate)}`}>
+                    <Button variant="outline" className="gap-1.5">
+                      <Beef className="h-4 w-4" />
+                      مواشي
+                    </Button>
+                  </Link>
+                  <Link href={`/category/birds?city=${encodeURIComponent(mapGovernorate)}`}>
+                    <Button variant="outline" className="gap-1.5">
+                      <Bird className="h-4 w-4" />
+                      طيور
+                    </Button>
+                  </Link>
+                  <Link href={`/category/vegetables?city=${encodeURIComponent(mapGovernorate)}`}>
+                    <Button variant="outline" className="gap-1.5">
+                      <Leaf className="h-4 w-4" />
+                      خضروات
+                    </Button>
+                  </Link>
+                  <Link href={`/category/clothes?city=${encodeURIComponent(mapGovernorate)}`}>
+                    <Button variant="outline" className="gap-1.5">
+                      <Shirt className="h-4 w-4" />
+                      ملابس
+                    </Button>
+                  </Link>
+                  <Link href={`/category/home-appliances?city=${encodeURIComponent(mapGovernorate)}`}>
+                    <Button variant="outline" className="gap-1.5">
+                      <Tv className="h-4 w-4" />
+                      أجهزة
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-48 rounded-2xl border border-dashed bg-muted/30">
+                <div className="text-center text-muted-foreground">
+                  <MapPin className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">اختر محافظة من الخريطة</p>
+                  <p className="text-sm mt-1">لعرض الإعلانات المتاحة في منطقتك</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

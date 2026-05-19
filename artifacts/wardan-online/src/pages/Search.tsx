@@ -1,46 +1,74 @@
 import { useState } from "react";
-import { Search as SearchIcon, Tag, X } from "lucide-react";
+import { Search as SearchIcon, Tag, X, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useSearchListings, getSearchListingsQueryKey } from "@workspace/api-client-react";
+import { useListListings } from "@workspace/api-client-react";
 import ListingCard from "@/components/ListingCard";
-
-const EGYPT_GOVERNORATES = [
-  "الكل",
-  "القاهرة", "الجيزة", "الإسكندرية", "الدقهلية", "البحر الأحمر",
-  "البحيرة", "الفيوم", "الغربية", "الإسماعيلية", "المنوفية",
-  "المنيا", "القليوبية", "الوادي الجديد", "السويس", "أسوان",
-  "أسيوط", "بني سويف", "بورسعيد", "دمياط", "الشرقية",
-  "جنوب سيناء", "كفر الشيخ", "مطروح", "الأقصر", "قنا",
-  "شمال سيناء", "سوهاج",
-];
+import { EGYPT_GOVERNORATES } from "@/lib/governorates";
 
 export default function Search() {
   const params = new URLSearchParams(window.location.search);
   const initialQuery = params.get("q") ?? "";
+  const initialCity = (() => {
+    const c = params.get("city");
+    return c && EGYPT_GOVERNORATES.includes(c) ? c : "الكل";
+  })();
 
   const [searchInput, setSearchInput] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
-  const [city, setCity] = useState("الكل");
+  const [city, setCity] = useState(initialCity);
 
-  const { data: results, isLoading } = useSearchListings(
-    { q: query, city: city !== "الكل" ? city : undefined },
-    { query: { enabled: !!query, queryKey: getSearchListingsQueryKey({ q: query, city: city !== "الكل" ? city : undefined }) } }
+  const hasFilter = !!query || city !== "الكل";
+
+  const { data: result, isLoading } = useListListings(
+    {
+      search: query || undefined,
+      city: city !== "الكل" ? city : undefined,
+      limit: 60,
+    },
+    {
+      query: {
+        enabled: hasFilter,
+        queryKey: ["search-listings", query, city],
+      },
+    }
   );
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchInput.trim()) {
-      setQuery(searchInput.trim());
-      window.history.replaceState({}, "", `?q=${encodeURIComponent(searchInput.trim())}`);
-    }
+    const trimmed = searchInput.trim();
+    setQuery(trimmed);
+    const urlParams = new URLSearchParams();
+    if (trimmed) urlParams.set("q", trimmed);
+    if (city !== "الكل") urlParams.set("city", city);
+    const search = urlParams.toString();
+    window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);
   };
 
-  const filteredResults = results ?? [];
+  const handleCityChange = (newCity: string) => {
+    setCity(newCity);
+    const urlParams = new URLSearchParams();
+    if (query) urlParams.set("q", query);
+    if (newCity !== "الكل") urlParams.set("city", newCity);
+    const search = urlParams.toString();
+    window.history.replaceState({}, "", search ? `?${search}` : window.location.pathname);
+  };
+
+  const listings = result?.listings ?? [];
+  const total = result?.total ?? 0;
+
+  const resultLabel = (() => {
+    if (isLoading) return "جاري البحث...";
+    const count = `${listings.length} إعلان`;
+    if (query && city !== "الكل") return `${count} لـ "${query}" في ${city}`;
+    if (query) return `${count} لـ "${query}"`;
+    if (city !== "الكل") return `${count} في ${city}`;
+    return count;
+  })();
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -64,7 +92,7 @@ export default function Search() {
       {/* Governorate filter */}
       <div className="flex items-center gap-3 mb-6 max-w-xl">
         <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">تصفية بالمحافظة:</label>
-        <Select value={city} onValueChange={setCity}>
+        <Select value={city} onValueChange={handleCityChange}>
           <SelectTrigger className="h-10 flex-1" data-testid="select-search-city-filter">
             <SelectValue />
           </SelectTrigger>
@@ -76,29 +104,28 @@ export default function Search() {
         </Select>
         {city !== "الكل" && (
           <button
-            onClick={() => setCity("الكل")}
-            className="inline-flex items-center gap-1 bg-[#E85530]/10 text-[#E85530] text-xs px-2.5 py-1.5 rounded-full hover:opacity-80"
+            onClick={() => handleCityChange("الكل")}
+            className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2.5 py-1.5 rounded-full hover:opacity-80"
             data-testid="button-clear-city-filter"
           >
-            📍 {city}
+            <MapPin className="h-3 w-3" />
+            {city}
             <X className="h-3 w-3" />
           </button>
         )}
       </div>
 
-      {query && (
+      {hasFilter && (
         <p className="text-muted-foreground mb-6" data-testid="text-search-query">
-          {isLoading
-            ? "جاري البحث..."
-            : `${filteredResults.length} نتيجة لـ "${query}"${city !== "الكل" ? ` في ${city}` : ""}`
-          }
+          {resultLabel}
+          {!isLoading && total > listings.length && ` (من ${total})`}
         </p>
       )}
 
-      {!query ? (
+      {!hasFilter ? (
         <div className="text-center py-20 text-muted-foreground">
           <SearchIcon className="h-16 w-16 mx-auto mb-4 opacity-30" />
-          <p className="text-xl">اكتب ما تبحث عنه للبدء</p>
+          <p className="text-xl">اكتب ما تبحث عنه أو اختر محافظة للبدء</p>
         </div>
       ) : isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -106,9 +133,9 @@ export default function Search() {
             <Skeleton key={i} className="h-72 rounded-xl" />
           ))}
         </div>
-      ) : filteredResults.length > 0 ? (
+      ) : listings.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredResults.map((listing) => (
+          {listings.map((listing) => (
             <ListingCard key={listing.id} listing={{
               ...listing,
               price: listing.price ?? null,
@@ -126,7 +153,13 @@ export default function Search() {
         <div className="text-center py-20 text-muted-foreground">
           <Tag className="h-16 w-16 mx-auto mb-4 opacity-30" />
           <p className="text-xl font-medium mb-2">لا توجد نتائج</p>
-          <p className="text-sm">جرب كلمات بحث مختلفة{city !== "الكل" ? " أو اختر محافظة مختلفة" : ""}</p>
+          <p className="text-sm">
+            {query && city !== "الكل"
+              ? `لا توجد إعلانات لـ "${query}" في ${city}`
+              : query
+              ? "جرب كلمات بحث مختلفة"
+              : `لا توجد إعلانات في ${city} بعد`}
+          </p>
         </div>
       )}
     </div>

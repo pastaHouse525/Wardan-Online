@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "wouter";
-import { Search, SlidersHorizontal, Plus, X, ChevronDown, LayoutGrid, LayoutList } from "lucide-react";
+import { useParams, useSearch } from "wouter";
+import { Search, SlidersHorizontal, Plus, X, LayoutGrid, LayoutList, Map, MapPin } from "lucide-react";
 import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/select";
 import { useListListings } from "@workspace/api-client-react";
 import ListingCard from "@/components/ListingCard";
+import EgyptMap from "@/components/EgyptMap";
+import { EGYPT_GOVERNORATES } from "@/lib/governorates";
 
 const CATEGORIES: Record<string, { nameAr: string; emoji: string; gradient: string; description: string }> = {
   "real-estate":    { nameAr: "عقارات",        emoji: "🏠", gradient: "from-[#E85530] to-[#C94420]",  description: "شقق، فلل، أراضي، محلات تجارية" },
@@ -26,16 +28,6 @@ const SORT_OPTIONS = [
   { value: "oldest",     label: "الأقدم أولاً" },
   { value: "price_asc",  label: "السعر: الأقل" },
   { value: "price_desc", label: "السعر: الأعلى" },
-];
-
-const EGYPT_GOVERNORATES = [
-  "الكل",
-  "القاهرة", "الجيزة", "الإسكندرية", "الدقهلية", "البحر الأحمر",
-  "البحيرة", "الفيوم", "الغربية", "الإسماعيلية", "المنوفية",
-  "المنيا", "القليوبية", "الوادي الجديد", "السويس", "أسوان",
-  "أسيوط", "بني سويف", "بورسعيد", "دمياط", "الشرقية",
-  "جنوب سيناء", "كفر الشيخ", "مطروح", "الأقصر", "قنا",
-  "شمال سيناء", "سوهاج",
 ];
 
 function CardSkeleton() {
@@ -58,14 +50,22 @@ function CardSkeleton() {
 
 export default function Category() {
   const { slug } = useParams<{ slug: string }>();
+  const searchStr = useSearch();
   const cat = CATEGORIES[slug ?? ""];
+
+  const initialCity = (() => {
+    const params = new URLSearchParams(searchStr);
+    const c = params.get("city");
+    return c && EGYPT_GOVERNORATES.includes(c) ? c : "الكل";
+  })();
 
   const [searchInput, setSearchInput]   = useState("");
   const [searchQuery, setSearchQuery]   = useState("");
   const [sort, setSort]                 = useState("newest");
-  const [city, setCity]                 = useState("الكل");
+  const [city, setCity]                 = useState(initialCity);
   const [filtersOpen, setFiltersOpen]   = useState(false);
   const [viewMode, setViewMode]         = useState<"grid" | "list">("grid");
+  const [showMap, setShowMap]           = useState(false);
 
   // Debounced live search
   useEffect(() => {
@@ -145,6 +145,16 @@ export default function Category() {
             >
               <SlidersHorizontal className={`h-4 w-4 ${filtersOpen ? "text-primary" : ""}`} />
             </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className={`h-11 w-11 shrink-0 ${showMap ? "bg-primary text-primary-foreground border-primary" : ""}`}
+              onClick={() => setShowMap(!showMap)}
+              title="عرض الخريطة"
+              data-testid="button-toggle-map"
+            >
+              <Map className="h-4 w-4" />
+            </Button>
             <div className="hidden sm:flex gap-1 border rounded-lg p-0.5">
               <button
                 onClick={() => setViewMode("grid")}
@@ -162,6 +172,39 @@ export default function Category() {
               </button>
             </div>
           </div>
+
+          {/* Map panel */}
+          {showMap && (
+            <div className="mb-3 p-3 bg-muted/40 rounded-xl border flex flex-col sm:flex-row gap-4 items-start">
+              <div className="w-full sm:w-56 shrink-0">
+                <EgyptMap
+                  selectedGovernorate={city !== "الكل" ? city : null}
+                  onSelectGovernorate={(gov) => setCity(gov ?? "الكل")}
+                  className="w-full"
+                />
+                <p className="text-xs text-muted-foreground text-center mt-1">انقر على محافظة للتصفية</p>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground mb-2">تصفية حسب المحافظة</p>
+                {city !== "الكل" ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary font-semibold text-sm px-3 py-1.5 rounded-full">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {city}
+                    </span>
+                    <button
+                      onClick={() => setCity("الكل")}
+                      className="text-xs text-muted-foreground hover:text-foreground underline"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">لم يتم تحديد محافظة — اضغط على الخريطة للتصفية</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Expanded filters */}
           {filtersOpen && (
