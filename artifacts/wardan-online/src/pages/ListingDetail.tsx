@@ -45,7 +45,7 @@ export default function ListingDetail() {
   }
 
   const whatsappUrl = `https://wa.me/${listing.whatsappNumber.replace(/\D/g, "")}`;
-  const formattedDate = new Date(listing.createdAt).toLocaleDateString("ar-SA", {
+  const formattedDate = new Date(listing.createdAt).toLocaleDateString("ar-EG", {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -97,7 +97,7 @@ export default function ListingDetail() {
           {listing.price && (
             <div className="flex items-center gap-2 text-primary font-bold text-2xl" data-testid="text-listing-price">
               <DollarSign className="h-6 w-6" />
-              <span>{Number(listing.price).toLocaleString("ar-SA")}</span>
+              <span>{Number(listing.price).toLocaleString("ar-EG")}</span>
               {listing.priceUnit && <span className="text-base font-normal text-muted-foreground">{listing.priceUnit}</span>}
             </div>
           )}

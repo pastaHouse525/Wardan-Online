@@ -28,10 +28,10 @@ const SORT_OPTIONS = [
   { value: "price_desc", label: "السعر: الأعلى" },
 ];
 
-const YEMEN_CITIES = [
-  "الكل", "صنعاء", "عدن", "تعز", "الحديدة", "إب", "ذمار", "مأرب",
-  "حضرموت", "شبوة", "أبين", "لحج", "الضالع", "البيضاء",
-  "الجوف", "عمران", "ريمة", "المحويت", "حجة", "صعدة",
+const EGYPT_CITIES = [
+  "الكل", "وردان", "منوف", "شبين الكوم", "المنوفية", "بركة السبع",
+  "أشمون", "السادات", "القاهرة", "الإسكندرية", "الجيزة",
+  "طنطا", "المنصورة", "الزقازيق", "دمياط",
 ];
 
 function CardSkeleton() {
@@ -189,7 +189,7 @@ export default function Category() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
-                    {YEMEN_CITIES.map((c) => (
+                    {EGYPT_CITIES.map((c) => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
                   </SelectContent>

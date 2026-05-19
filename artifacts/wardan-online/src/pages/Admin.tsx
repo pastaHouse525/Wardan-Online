@@ -271,7 +271,7 @@ function PendingSection({ onInvalidate }: { onInvalidate: () => void }) {
                 {listing.price != null && (
                   <span className="flex items-center gap-1">
                     <DollarSign className="h-3 w-3" />
-                    {listing.price.toLocaleString("ar-SA")} {listing.priceUnit ?? ""}
+                    {listing.price.toLocaleString("ar-EG")} {listing.priceUnit ?? ""}
                   </span>
                 )}
                 {(listing.location ?? (listing as { city?: string }).city) && (
@@ -605,7 +605,7 @@ function AppointmentsSection() {
             </div>
             <div className="space-y-1.5">
               <Label>رقم واتساب *</Label>
-              <Input placeholder="967XXXXXXXXX" dir="ltr" value={form.whatsappNumber}
+              <Input placeholder="201XXXXXXXXX" dir="ltr" value={form.whatsappNumber}
                 onChange={(e) => setForm({ ...form, whatsappNumber: e.target.value })}
                 required data-testid="input-doctor-whatsapp" />
             </div>
@@ -616,7 +616,7 @@ function AppointmentsSection() {
             </div>
             <div className="space-y-1.5">
               <Label>موقع العيادة</Label>
-              <Input placeholder="صنعاء - حي الروضة" value={form.clinicLocation}
+              <Input placeholder="وردان - المنوفية" value={form.clinicLocation}
                 onChange={(e) => setForm({ ...form, clinicLocation: e.target.value })} />
             </div>
             <div className="space-y-1.5">
@@ -656,7 +656,7 @@ function AppointmentsSection() {
                     <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{appt.clinicLocation}</span>
                   )}
                   {appt.consultationFee != null && (
-                    <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{appt.consultationFee} ريال</span>
+                    <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{appt.consultationFee} جنيه</span>
                   )}
                 </div>
               </div>
@@ -907,7 +907,7 @@ function AdminUsersSection() {
                       <Badge className="bg-primary/10 text-primary hover:bg-primary/10 text-xs">{u.role}</Badge>
                     </td>
                     <td className="p-3 text-muted-foreground text-xs hidden md:table-cell">
-                      {new Date(u.created_at).toLocaleDateString("ar-SA")}
+                      {new Date(u.created_at).toLocaleDateString("ar-EG")}
                     </td>
                     <td className="p-3">
                       <button

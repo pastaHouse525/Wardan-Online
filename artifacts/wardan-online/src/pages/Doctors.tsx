@@ -50,7 +50,7 @@ export default function Doctors() {
                   {doctor.consultationFee && (
                     <div className="flex items-center gap-2 text-primary font-semibold mb-4">
                       <DollarSign className="h-4 w-4" />
-                      <span>{Number(doctor.consultationFee).toLocaleString("ar-SA")} ريال</span>
+                      <span>{Number(doctor.consultationFee).toLocaleString("ar-EG")} جنيه</span>
                     </div>
                   )}
 

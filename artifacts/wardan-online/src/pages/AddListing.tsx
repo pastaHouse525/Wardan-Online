@@ -48,10 +48,10 @@ const categories = [
   { slug: "doctors",         nameAr: "مواعيد طبية",  icon: "🩺" },
 ];
 
-const yemenCities = [
-  "صنعاء", "عدن", "تعز", "الحديدة", "إب", "ذمار", "مأرب", "حضرموت",
-  "شبوة", "أبين", "لحج", "الضالع", "البيضاء", "الجوف", "عمران",
-  "ريمة", "المحويت", "حجة", "صعدة", "المهرة", "سقطرى",
+const egyptCities = [
+  "وردان", "منوف", "شبين الكوم", "المنوفية", "بركة السبع",
+  "أشمون", "السادات", "القاهرة", "الإسكندرية", "الجيزة",
+  "طنطا", "المنصورة", "الزقازيق", "دمياط", "بني سويف",
 ];
 
 interface UploadedImage {
@@ -84,7 +84,7 @@ export default function AddListing() {
     resolver: zodResolver(schema),
     defaultValues: {
       titleAr: "", categorySlug: "", descriptionAr: "",
-      price: "", priceUnit: "ريال", city: "", location: "",
+      price: "", priceUnit: "جنيه", city: "وردان", location: "",
       sellerName: "", phoneNumber: "", whatsappNumber: "",
     },
   });
@@ -263,7 +263,7 @@ export default function AddListing() {
                   <FormLabel className="text-base font-semibold">عنوان الإعلان *</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="مثال: شقة للبيع في صنعاء - 3 غرف"
+                      placeholder="مثال: شقة للبيع في وردان - 3 غرف"
                       className="h-12 text-base"
                       {...field}
                       data-testid="input-title"
@@ -323,9 +323,10 @@ export default function AddListing() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="ريال">ريال يمني</SelectItem>
-                      <SelectItem value="دولار">دولار</SelectItem>
-                      <SelectItem value="ريال سعودي">ريال سعودي</SelectItem>
+                      <SelectItem value="جنيه">جنيه مصري</SelectItem>
+                      <SelectItem value="جنيه/شهر">جنيه / شهر</SelectItem>
+                      <SelectItem value="جنيه/رأس">جنيه / رأس</SelectItem>
+                      <SelectItem value="جنيه/كيلو">جنيه / كيلو</SelectItem>
                       <SelectItem value="للتفاوض">للتفاوض</SelectItem>
                     </SelectContent>
                   </Select>
@@ -349,7 +350,7 @@ export default function AddListing() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="max-h-60">
-                      {yemenCities.map((c) => (
+                      {egyptCities.map((c) => (
                         <SelectItem key={c} value={c}>{c}</SelectItem>
                       ))}
                     </SelectContent>
@@ -513,7 +514,7 @@ export default function AddListing() {
                     <FormControl>
                       <Input
                         type="tel"
-                        placeholder="967XXXXXXXXX"
+                        placeholder="201XXXXXXXXX"
                         dir="ltr"
                         className="h-12 text-left border-[#25D366]/40 focus-visible:ring-[#25D366]"
                         {...field}
