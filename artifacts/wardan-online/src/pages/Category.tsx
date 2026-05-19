@@ -316,6 +316,7 @@ export default function Category() {
                   sellerName: listing.sellerName ?? null,
                   imageUrl: listing.imageUrl ?? null,
                   imageUrls: (listing as { imageUrls?: string[] }).imageUrls ?? [],
+                  featured: listing.featured ?? false,
                 }}
               />
             ))}

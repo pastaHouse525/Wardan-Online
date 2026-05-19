@@ -22,6 +22,7 @@ import {
   getAdminListListingsQueryKey, getGetAdminStatsQueryKey,
   getListAppointmentsQueryKey,
 } from "@workspace/api-client-react";
+import type { AdminStats } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -112,7 +113,7 @@ function StatusBadge({ status }: { status: string }) {
 // ─── sections ─────────────────────────────────────────────────────────────────
 
 function OverviewSection({ stats, statsLoading, onGoPending }: {
-  stats: ReturnType<typeof useGetAdminStats>["data"];
+  stats: AdminStats | undefined;
   statsLoading: boolean;
   onGoPending: () => void;
 }) {
@@ -943,7 +944,7 @@ export default function Admin() {
   }, [setLocation]);
 
   const { data: stats, isLoading: statsLoading } = useGetAdminStats({
-    query: { enabled: isAdminLoggedIn(), meta: { headers: authHeaders() } },
+    query: { enabled: isAdminLoggedIn(), queryKey: getGetAdminStatsQueryKey(), meta: { headers: authHeaders() } },
   });
 
   const invalidateAll = () => {

@@ -234,6 +234,7 @@ export default function Home() {
                 location: listing.location ?? null,
                 sellerName: listing.sellerName ?? null,
                 imageUrl: listing.imageUrl ?? null,
+                featured: listing.featured ?? false,
               }} />
             ))}
           </div>
