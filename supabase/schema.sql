@@ -1,5 +1,5 @@
 -- ============================================================
--- Wardan Online — Supabase Schema  (v2)
+-- Wardan Online — Supabase Schema (v3 — matches actual DB)
 -- Run this in your Supabase SQL Editor to set up the database
 -- ============================================================
 
@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS categories (
   id            SERIAL PRIMARY KEY,
   slug          TEXT NOT NULL UNIQUE,
   name_ar       TEXT NOT NULL,
+  name_en       TEXT NOT NULL,
+  icon          TEXT NOT NULL DEFAULT 'tag',
   listing_count INTEGER NOT NULL DEFAULT 0,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -49,6 +51,14 @@ CREATE TABLE IF NOT EXISTS appointments (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Admin users (authorized to access the admin panel)
+CREATE TABLE IF NOT EXISTS admin_users (
+  id         SERIAL PRIMARY KEY,
+  email      TEXT NOT NULL UNIQUE,
+  role       TEXT NOT NULL DEFAULT 'admin',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Helper function: increment listing_count on a category
 CREATE OR REPLACE FUNCTION increment_listing_count(category_slug_param TEXT)
 RETURNS VOID LANGUAGE plpgsql AS $$
@@ -64,11 +74,13 @@ $$;
 ALTER TABLE categories    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE listings      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE appointments  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_users   ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Public read categories"   ON categories   FOR SELECT USING (true);
-CREATE POLICY "Public read appointments" ON appointments FOR SELECT USING (true);
-CREATE POLICY "Public read approved"     ON listings     FOR SELECT USING (status = 'approved');
-CREATE POLICY "Public insert listing"    ON listings     FOR INSERT WITH CHECK (status = 'pending');
+CREATE POLICY "Public read categories"     ON categories   FOR SELECT USING (true);
+CREATE POLICY "Public read appointments"   ON appointments FOR SELECT USING (true);
+CREATE POLICY "Public insert appointment"  ON appointments FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public read approved"       ON listings     FOR SELECT USING (status = 'approved');
+CREATE POLICY "Public insert listing"      ON listings     FOR INSERT WITH CHECK (true);
 
 -- ============================================================
 -- Storage bucket for listing images
@@ -87,20 +99,22 @@ CREATE POLICY "Anyone can upload images"
 -- ============================================================
 -- Seed data — 7 categories
 -- ============================================================
-INSERT INTO categories (slug, name_ar) VALUES
-  ('real-estate',     'عقارات'),
-  ('livestock',       'مواشي'),
-  ('birds',           'طيور'),
-  ('vegetables',      'خضروات'),
-  ('clothes',         'ملابس'),
-  ('home-appliances', 'أجهزة منزلية'),
-  ('doctors',         'مواعيد طبية')
-ON CONFLICT (slug) DO NOTHING;
+INSERT INTO categories (slug, name_ar, name_en, icon) VALUES
+  ('real-estate',     'عقارات',        'Real Estate',       'home'),
+  ('livestock',       'مواشي',         'Livestock',         'beef'),
+  ('birds',           'طيور',          'Birds',             'bird'),
+  ('vegetables',      'خضروات',        'Vegetables',        'leaf'),
+  ('clothes',         'ملابس',         'Clothes',           'shirt'),
+  ('home-appliances', 'أجهزة منزلية', 'Home Appliances',   'tv'),
+  ('doctors',         'مواعيد طبية',  'Doctor Appointments','stethoscope')
+ON CONFLICT (slug) DO UPDATE SET
+  name_ar = EXCLUDED.name_ar,
+  name_en = EXCLUDED.name_en,
+  icon = EXCLUDED.icon;
 
 -- ============================================================
--- Migration: add new columns to existing tables
--- (run only if the table already exists without these columns)
+-- Migrations: add columns if upgrading from older schema
 -- ============================================================
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS phone_number  TEXT;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS image_urls    TEXT;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS city          TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS phone_number TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS image_urls   TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS city         TEXT;

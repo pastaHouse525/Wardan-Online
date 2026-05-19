@@ -36,6 +36,8 @@ export type SupabaseCategory = {
   id: number;
   slug: string;
   name_ar: string;
+  name_en: string;
+  icon: string;
   listing_count: number;
 };
 

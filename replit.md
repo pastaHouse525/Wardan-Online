@@ -55,11 +55,26 @@ Arabic-language marketplace website with RTL layout, covering 7 categories and a
 - Dark green and white color palette
 - WhatsApp contact button on every listing
 
+## Database Architecture
+
+- **Data storage**: Replit's built-in PostgreSQL (`DATABASE_URL`) — used by the API server for all CRUD via raw SQL in `artifacts/api-server/src/lib/db.ts`
+- **Auth**: Supabase Auth — admin login at `/api/auth/login` uses `supabase.auth.signInWithPassword()`
+- **Storage**: Supabase Storage bucket `listing-images` — image uploads go directly from frontend browser to Supabase via anon key
+- The `lib/db` Drizzle package connects to the same DATABASE_URL (used for schema reference only — routes use raw SQL)
+
+## Admin Login
+
+- Default admin credentials: `admin@wardan.com` / `WardanAdmin2024!`
+- To add more admins: insert email into `admin_users` table AND create user in Supabase Auth dashboard
+- `requireAdmin` middleware verifies Supabase JWT + checks `admin_users` table in local DB
+
 ## Gotchas
 
 - After any OpenAPI spec change, always run `pnpm --filter @workspace/api-spec run codegen`
-- DB listing counts are updated via a SQL trigger on insert — manually run the UPDATE if counts drift
-- Admin dashboard has no authentication — add auth before production deployment
+- DB listing counts are updated on every INSERT in listings.ts route — recalculate if drift occurs:
+  `UPDATE categories c SET listing_count = (SELECT COUNT(*) FROM listings l WHERE l.category_slug = c.slug AND l.status = 'approved');`
+- Image uploads use Supabase Storage directly from the browser (requires `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`)
+- Admin authentication uses Supabase Auth (JWT verification) + local `admin_users` table for authorization
 
 ## Pointers
 
