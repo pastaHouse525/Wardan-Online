@@ -1,37 +1,36 @@
 import { Router } from "express";
-import { requireAdmin } from "../middleware/requireAdmin";
-import { getServerSupabase } from "../lib/supabase";
+import multer from "multer";
+import { uploadFile } from "../lib/storage";
+
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif",
+]);
+const SAFE_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg":  "jpg",
+  "image/png":  "png",
+  "image/webp": "webp",
+  "image/gif":  "gif",
+};
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-router.post("/upload", requireAdmin, async (req, res) => {
-  const { base64, filename, mimeType } = req.body;
-  if (!base64 || !filename) {
-    return res.status(400).json({ error: "base64 and filename are required" });
+router.post("/upload", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "No file provided" });
+    return;
+  }
+
+  if (!ALLOWED_MIME_TYPES.has(req.file.mimetype)) {
+    res.status(400).json({ error: "Only image files are allowed (JPEG, PNG, WebP, GIF)" });
+    return;
   }
 
   try {
-    const supabase = getServerSupabase();
-    const buffer = Buffer.from(base64, "base64");
-    const ext = filename.split(".").pop() ?? "jpg";
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-    const { data, error } = await supabase.storage
-      .from("listing-images")
-      .upload(path, buffer, {
-        contentType: mimeType ?? "image/jpeg",
-        cacheControl: "3600",
-      });
-
-    if (error) {
-      return res.status(500).json({ error: `Upload failed: ${error.message}` });
-    }
-
-    const { data: urlData } = supabase.storage
-      .from("listing-images")
-      .getPublicUrl(data.path);
-
-    res.json({ url: urlData.publicUrl });
+    const ext = SAFE_EXTENSIONS[req.file.mimetype] ?? "jpg";
+    const url = await uploadFile(req.file.buffer, `upload.${ext}`, req.file.mimetype);
+    res.json({ url });
   } catch (err) {
     req.log.error({ err }, "Upload failed");
     res.status(500).json({ error: "Internal server error" });

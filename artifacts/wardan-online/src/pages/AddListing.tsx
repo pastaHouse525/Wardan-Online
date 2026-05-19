@@ -153,9 +153,7 @@ export default function AddListing() {
           descriptionAr: data.descriptionAr || undefined,
           price: data.price ? Number(data.price) : undefined,
           priceUnit: data.priceUnit || undefined,
-          location: data.city
-            ? `${data.city}${data.location ? ` - ${data.location}` : ""}`
-            : data.location || undefined,
+          location: data.location || undefined,
           sellerName: data.sellerName || undefined,
           imageUrl: uploadedUrls[0] || undefined,
           // Pass extra fields via the existing body — the server accepts them

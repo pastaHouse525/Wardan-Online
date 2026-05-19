@@ -7,6 +7,7 @@ import searchRouter from "./search";
 import adminRouter from "./admin";
 import authRouter from "./auth";
 import uploadRouter from "./upload";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(appointmentsRouter);
 router.use(searchRouter);
 router.use(adminRouter);
 router.use(uploadRouter);
+router.use(storageRouter);
 
 export default router;
