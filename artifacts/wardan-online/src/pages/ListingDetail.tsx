@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetListing, getGetListingQueryKey } from "@workspace/api-client-react";
+import { formatPriceUnit } from "@/lib/utils";
 
 export default function ListingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -98,7 +99,7 @@ export default function ListingDetail() {
             <div className="flex items-center gap-2 text-primary font-bold text-2xl" data-testid="text-listing-price">
               <DollarSign className="h-6 w-6" />
               <span>{Number(listing.price).toLocaleString("ar-EG")}</span>
-              {listing.priceUnit && <span className="text-base font-normal text-muted-foreground">{listing.priceUnit === "EGP" ? "جنيه مصري" : listing.priceUnit}</span>}
+              {listing.priceUnit && <span className="text-base font-normal text-muted-foreground">{formatPriceUnit(listing.priceUnit)}</span>}
             </div>
           )}
 
