@@ -20,6 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useRef } from "react";
 import { uploadListingImage } from "@/lib/supabase";
+import { PRICE_UNIT_OPTIONS } from "@/lib/utils";
 
 const MAX_IMAGES = 5;
 
@@ -324,8 +325,9 @@ export default function AddListing() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="EGP">جنيه مصري</SelectItem>
-                      <SelectItem value="للتفاوض">للتفاوض</SelectItem>
+                      {PRICE_UNIT_OPTIONS.map(({ value, label }) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
