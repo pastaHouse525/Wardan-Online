@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Lock, ShoppingBag, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { adminLogin, setAdminToken } from "@/lib/adminAuth";
 
 export default function AdminLogin() {
@@ -24,87 +23,103 @@ export default function AdminLogin() {
       setAdminToken(accessToken);
       setLocation("/admin");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ");
+      setError(err instanceof Error ? err.message : "حدث خطأ في تسجيل الدخول");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#1D2B50] px-4">
       <div className="w-full max-w-sm">
+        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary mb-4">
-            <ShoppingBag className="h-8 w-8 text-primary-foreground" />
+          <div className="inline-flex items-center gap-3 mb-4">
+            <img src="/logo.jpeg" alt="Wardan" className="h-14 w-14 rounded-2xl object-cover shadow-lg" />
+            <div className="text-white text-right">
+              <p className="font-black text-2xl tracking-wide">WARDAN</p>
+              <p className="text-white/60 text-sm">وردان أونلاين</p>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold">وردان أونلاين</h1>
-          <p className="text-muted-foreground mt-1">لوحة الإدارة</p>
+          <p className="text-white/50 text-sm">لوحة الإدارة</p>
         </div>
 
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Lock className="h-5 w-5" />
-              تسجيل الدخول
-            </CardTitle>
-            <CardDescription>أدخل بيانات حساب الإدارة</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">البريد الإلكتروني</Label>
+        {/* Card */}
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Lock className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="font-bold text-lg">تسجيل الدخول</h2>
+              <p className="text-xs text-muted-foreground">أدخل بيانات حساب الإدارة</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="admin@example.com"
+                dir="ltr"
+                className="h-11"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                data-testid="input-admin-email"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password">كلمة المرور</Label>
+              <div className="relative">
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@example.com"
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
                   dir="ltr"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-11 pl-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
-                  data-testid="input-admin-email"
+                  data-testid="input-admin-password"
                 />
+                <button
+                  type="button"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">كلمة المرور</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    dir="ltr"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    data-testid="input-admin-password"
-                  />
-                  <button
-                    type="button"
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+            {error && (
+              <div className="bg-destructive/10 text-destructive text-sm rounded-xl px-4 py-3 border border-destructive/20" data-testid="text-login-error">
+                ⚠️ {error}
               </div>
+            )}
 
-              {error && (
-                <div className="bg-destructive/10 text-destructive text-sm rounded-lg px-4 py-3" data-testid="text-login-error">
-                  {error}
-                </div>
+            <Button
+              type="submit"
+              className="w-full h-11 text-base gap-2"
+              disabled={loading}
+              data-testid="button-admin-login"
+            >
+              {loading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> جاري الدخول...</>
+              ) : (
+                "دخول للوحة الإدارة"
               )}
+            </Button>
+          </form>
+        </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loading}
-                data-testid="button-admin-login"
-              >
-                {loading ? "جاري الدخول..." : "دخول"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        <p className="text-center text-white/30 text-xs mt-6">
+          يُرجى استخدام بيانات حساب Supabase للدخول
+        </p>
       </div>
     </div>
   );

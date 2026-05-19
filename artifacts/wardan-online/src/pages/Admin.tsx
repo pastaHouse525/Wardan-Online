@@ -1,194 +1,386 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import {
-  LayoutDashboard, List, CheckCircle, XCircle, Clock, Tag, Stethoscope,
-  Trash2, Check, X, LogOut,
+  LayoutDashboard, List, Clock, CheckCircle, XCircle, Tag,
+  Stethoscope, Trash2, Check, X, LogOut, Star, StarOff,
+  Menu, ChevronLeft, Plus, Phone, MapPin, DollarSign,
+  AlertCircle, Loader2, Search, MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  useGetAdminStats, useAdminListListings, useApproveListing, useRejectListing, useDeleteListing,
+  useGetAdminStats, useAdminListListings, useApproveListing, useRejectListing,
+  useListAppointments, useCreateAppointment,
+  useListCategories,
   getAdminListListingsQueryKey, getGetAdminStatsQueryKey,
+  getListAppointmentsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { getAdminToken, adminLogout, isAdminLoggedIn } from "@/lib/adminAuth";
 
-const categoryNames: Record<string, string> = {
-  "real-estate": "عقارات",
-  "livestock": "مواشي",
-  "birds": "طيور",
-  "vegetables": "خضروات",
-  "clothes": "ملابس",
-  "home-appliances": "أجهزة منزلية",
-  "doctors": "مواعيد طبية",
-};
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function authHeaders() {
-  const token = getAdminToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const t = getAdminToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-export default function Admin() {
-  const queryClient = useQueryClient();
+async function apiFetch(path: string, method = "GET", body?: object) {
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  const res = await fetch(`${base}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 204) return null;
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Error");
+  return res.json();
+}
+
+function relativeTime(iso: string) {
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (d === 0) return "اليوم";
+  if (d === 1) return "أمس";
+  if (d < 30)  return `منذ ${d} يوم`;
+  return `منذ ${Math.floor(d / 30)} شهر`;
+}
+
+const CAT_COLORS: Record<string, string> = {
+  "real-estate":    "bg-[#E85530]/10 text-[#E85530]",
+  "livestock":      "bg-[#F5A020]/10 text-[#F5A020]",
+  "birds":          "bg-[#4A91C8]/10 text-[#4A91C8]",
+  "vegetables":     "bg-[#3DAA82]/10 text-[#3DAA82]",
+  "clothes":        "bg-pink-100 text-pink-700",
+  "home-appliances":"bg-indigo-100 text-indigo-700",
+  "doctors":        "bg-[#3DAA82]/10 text-[#3DAA82]",
+};
+
+const CAT_BAR_COLORS: Record<string, string> = {
+  "real-estate":    "bg-[#E85530]",
+  "livestock":      "bg-[#F5A020]",
+  "birds":          "bg-[#4A91C8]",
+  "vegetables":     "bg-[#3DAA82]",
+  "clothes":        "bg-pink-500",
+  "home-appliances":"bg-indigo-500",
+  "doctors":        "bg-teal-500",
+};
+
+// ─── nav config ──────────────────────────────────────────────────────────────
+
+type Section = "overview" | "pending" | "listings" | "categories" | "appointments";
+
+const NAV: { id: Section; label: string; icon: React.ReactNode; badge?: string }[] = [
+  { id: "overview",     label: "نظرة عامة",   icon: <LayoutDashboard className="h-5 w-5" /> },
+  { id: "pending",      label: "بانتظار الموافقة", icon: <Clock className="h-5 w-5" /> },
+  { id: "listings",     label: "كل الإعلانات", icon: <List className="h-5 w-5" /> },
+  { id: "categories",   label: "التصنيفات",    icon: <Tag className="h-5 w-5" /> },
+  { id: "appointments", label: "المواعيد الطبية", icon: <Stethoscope className="h-5 w-5" /> },
+];
+
+// ─── sub-components ───────────────────────────────────────────────────────────
+
+function StatCard({ label, value, icon, color, loading }: {
+  label: string; value: number | undefined; icon: React.ReactNode;
+  color: string; loading: boolean;
+}) {
+  return (
+    <div className="bg-card rounded-2xl border p-5 flex items-center gap-4">
+      <div className={`p-3 rounded-xl ${color}`}>{icon}</div>
+      <div>
+        {loading ? <Skeleton className="h-7 w-12 mb-1" /> : (
+          <p className="text-2xl font-black">{value ?? 0}</p>
+        )}
+        <p className="text-sm text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === "approved") return <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">موافق</Badge>;
+  if (status === "rejected") return <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs">مرفوض</Badge>;
+  return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 text-xs">مراجعة</Badge>;
+}
+
+// ─── sections ─────────────────────────────────────────────────────────────────
+
+function OverviewSection({ stats, statsLoading, onGoPending }: {
+  stats: ReturnType<typeof useGetAdminStats>["data"];
+  statsLoading: boolean;
+  onGoPending: () => void;
+}) {
+  const statCards = [
+    { label: "إجمالي الإعلانات", value: stats?.totalListings,     color: "bg-blue-100 text-blue-600",   icon: <List className="h-5 w-5" /> },
+    { label: "بانتظار الموافقة", value: stats?.pendingListings,   color: "bg-amber-100 text-amber-600", icon: <Clock className="h-5 w-5" /> },
+    { label: "موافق عليها",       value: stats?.approvedListings,  color: "bg-green-100 text-green-600", icon: <CheckCircle className="h-5 w-5" /> },
+    { label: "مرفوضة",            value: stats?.rejectedListings,  color: "bg-red-100 text-red-600",     icon: <XCircle className="h-5 w-5" /> },
+    { label: "التصنيفات",         value: stats?.totalCategories,   color: "bg-purple-100 text-purple-600",icon: <Tag className="h-5 w-5" /> },
+    { label: "المواعيد الطبية",   value: stats?.totalAppointments, color: "bg-teal-100 text-teal-600",   icon: <Stethoscope className="h-5 w-5" /> },
+  ];
+
+  const total = stats?.totalListings || 1;
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold">نظرة عامة</h2>
+
+      {(stats?.pendingListings ?? 0) > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-amber-800">
+              {stats!.pendingListings} إعلان بانتظار موافقتك
+            </p>
+            <p className="text-sm text-amber-600">راجع الإعلانات وافقها أو ارفضها</p>
+          </div>
+          <Button size="sm" onClick={onGoPending} className="bg-amber-500 hover:bg-amber-600 text-white shrink-0">
+            مراجعة
+          </Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        {statCards.map((c) => (
+          <StatCard key={c.label} {...c} loading={statsLoading} />
+        ))}
+      </div>
+
+      {stats?.listingsByCategory && stats.listingsByCategory.length > 0 && (
+        <div className="bg-card rounded-2xl border p-6">
+          <h3 className="font-bold text-lg mb-5">الإعلانات حسب التصنيف</h3>
+          <div className="space-y-3">
+            {[...stats.listingsByCategory]
+              .sort((a, b) => b.count - a.count)
+              .map((item) => (
+                <div key={item.categorySlug} className="flex items-center gap-3">
+                  <span className="w-32 text-sm text-muted-foreground truncate text-right flex-shrink-0">
+                    {item.categoryNameAr}
+                  </span>
+                  <div className="flex-1 bg-muted rounded-full h-3 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${CAT_BAR_COLORS[item.categorySlug] ?? "bg-primary"}`}
+                      style={{ width: `${Math.min((item.count / total) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-bold w-8 text-left shrink-0">{item.count}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PendingSection({ onInvalidate }: { onInvalidate: () => void }) {
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const approveMutation = useApproveListing();
+  const rejectMutation  = useRejectListing();
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!isAdminLoggedIn()) {
-      setLocation("/admin/login");
-    }
-  }, [setLocation]);
-
-  const queryOptions = {
-    query: {
-      enabled: isAdminLoggedIn(),
-      meta: { headers: authHeaders() },
-    },
-  };
-
-  const { data: stats, isLoading: statsLoading } = useGetAdminStats(queryOptions);
-  const { data: listings, isLoading: listingsLoading } = useAdminListListings(
-    {
-      status: statusFilter === "all" ? undefined : statusFilter,
-      category: categoryFilter === "all" ? undefined : categoryFilter,
-    },
-    {
-      query: {
-        enabled: isAdminLoggedIn(),
-        queryKey: getAdminListListingsQueryKey({ status: statusFilter, category: categoryFilter }),
-        meta: { headers: authHeaders() },
-      },
-    }
+  const { data: listings, isLoading } = useAdminListListings(
+    { status: "pending" },
+    { query: { enabled: isAdminLoggedIn(), queryKey: ["admin-listings-pending"] } }
   );
 
-  const approveMutation = useApproveListing();
-  const rejectMutation = useRejectListing();
-  const deleteMutation = useDeleteListing();
-
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: getAdminListListingsQueryKey() });
-    queryClient.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
-  };
-
   const handleApprove = (id: number) => {
-    approveMutation.mutate(
-      { id },
-      {
-        onSuccess: () => { invalidate(); toast({ title: "تمت الموافقة على الإعلان" }); },
-        onError: () => toast({ title: "حدث خطأ", variant: "destructive" }),
-      }
-    );
+    approveMutation.mutate({ id }, {
+      onSuccess: () => { onInvalidate(); toast({ title: "✅ تمت الموافقة على الإعلان" }); },
+      onError:   () => toast({ title: "حدث خطأ", variant: "destructive" }),
+    });
   };
 
   const handleReject = (id: number) => {
-    rejectMutation.mutate(
-      { id },
-      {
-        onSuccess: () => { invalidate(); toast({ title: "تم رفض الإعلان" }); },
-        onError: () => toast({ title: "حدث خطأ", variant: "destructive" }),
-      }
-    );
+    rejectMutation.mutate({ id }, {
+      onSuccess: () => { onInvalidate(); toast({ title: "❌ تم رفض الإعلان" }); },
+      onError:   () => toast({ title: "حدث خطأ", variant: "destructive" }),
+    });
   };
 
-  const handleDelete = (id: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذا الإعلان؟")) return;
-    deleteMutation.mutate(
-      { id },
-      {
-        onSuccess: () => { invalidate(); toast({ title: "تم حذف الإعلان" }); },
-        onError: () => toast({ title: "حدث خطأ", variant: "destructive" }),
-      }
-    );
+  const handleDelete = async (id: number) => {
+    if (!confirm("هل أنت متأكد من حذف هذا الإعلان نهائياً؟")) return;
+    setDeletingId(id);
+    try {
+      await apiFetch(`/api/admin/listings/${id}`, "DELETE");
+      onInvalidate();
+      toast({ title: "🗑️ تم حذف الإعلان" });
+    } catch {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
-  const handleLogout = async () => {
-    const token = getAdminToken();
-    if (token) await adminLogout(token);
-    queryClient.clear();
-    setLocation("/admin/login");
-  };
+  if (isLoading) return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-60 rounded-2xl" />)}
+    </div>
+  );
 
-  const statCards = [
-    { label: "إجمالي الإعلانات", value: stats?.totalListings, icon: <List className="h-5 w-5" />, color: "text-blue-600" },
-    { label: "قيد المراجعة", value: stats?.pendingListings, icon: <Clock className="h-5 w-5" />, color: "text-yellow-600" },
-    { label: "موافق عليها", value: stats?.approvedListings, icon: <CheckCircle className="h-5 w-5" />, color: "text-green-600" },
-    { label: "مرفوضة", value: stats?.rejectedListings, icon: <XCircle className="h-5 w-5" />, color: "text-red-600" },
-    { label: "التصنيفات", value: stats?.totalCategories, icon: <Tag className="h-5 w-5" />, color: "text-purple-600" },
-    { label: "المواعيد الطبية", value: stats?.totalAppointments, icon: <Stethoscope className="h-5 w-5" />, color: "text-teal-600" },
-  ];
-
-  if (!isAdminLoggedIn()) return null;
+  if (!listings?.length) return (
+    <div className="text-center py-20 text-muted-foreground">
+      <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500 opacity-70" />
+      <p className="text-xl font-bold text-foreground mb-1">لا توجد إعلانات معلقة</p>
+      <p className="text-sm">جميع الإعلانات تمت مراجعتها 🎉</p>
+    </div>
+  );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <LayoutDashboard className="h-7 w-7 text-primary" />
-          <h1 className="text-3xl font-bold" data-testid="text-admin-title">لوحة الإدارة</h1>
-        </div>
-        <Button variant="outline" className="gap-2" onClick={handleLogout} data-testid="button-logout">
-          <LogOut className="h-4 w-4" />
-          تسجيل الخروج
-        </Button>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">بانتظار الموافقة</h2>
+        <Badge className="bg-amber-100 text-amber-800 text-sm px-3 py-1">{listings.length} إعلان</Badge>
       </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        {statsLoading
-          ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
-          : statCards.map((card) => (
-            <Card key={card.label} data-testid={`card-stat-${card.label}`}>
-              <CardContent className="p-4">
-                <div className={`${card.color} mb-2`}>{card.icon}</div>
-                <p className="text-2xl font-bold">{card.value ?? 0}</p>
-                <p className="text-xs text-muted-foreground mt-1">{card.label}</p>
-              </CardContent>
-            </Card>
-          ))
-        }
-      </div>
-
-      {/* Category Breakdown */}
-      {stats?.listingsByCategory && stats.listingsByCategory.length > 0 && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>الإعلانات حسب التصنيف</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats.listingsByCategory.map((item) => (
-                <div key={item.categorySlug} className="flex items-center gap-3">
-                  <span className="w-28 text-sm text-muted-foreground text-right">{item.categoryNameAr}</span>
-                  <div className="flex-1 bg-muted rounded-full h-3 overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{ width: `${Math.min((item.count / (stats.totalListings || 1)) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-sm font-semibold w-8 text-left">{item.count}</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {listings.map((listing) => (
+          <div key={listing.id} className="bg-card rounded-2xl border overflow-hidden" data-testid={`card-pending-${listing.id}`}>
+            {/* Image */}
+            <div className="relative h-36 bg-muted overflow-hidden">
+              {listing.imageUrl ? (
+                <img src={listing.imageUrl} alt={listing.titleAr} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-4xl opacity-40">
+                  {listing.categorySlug === "real-estate" ? "🏠" :
+                   listing.categorySlug === "livestock"   ? "🐄" :
+                   listing.categorySlug === "birds"       ? "🦜" :
+                   listing.categorySlug === "vegetables"  ? "🥦" :
+                   listing.categorySlug === "clothes"     ? "👗" :
+                   listing.categorySlug === "doctors"     ? "🩺" : "📺"}
                 </div>
-              ))}
+              )}
+              <span className={`absolute top-2 right-2 text-xs font-medium px-2.5 py-1 rounded-full ${CAT_COLORS[listing.categorySlug] ?? "bg-gray-100 text-gray-700"}`}>
+                {listing.categoryNameAr ?? listing.categorySlug}
+              </span>
             </div>
-          </CardContent>
-        </Card>
-      )}
+
+            <div className="p-4">
+              <h3 className="font-bold line-clamp-1 mb-1" data-testid={`text-pending-title-${listing.id}`}>
+                {listing.titleAr}
+              </h3>
+              {listing.descriptionAr && (
+                <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{listing.descriptionAr}</p>
+              )}
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mb-4">
+                {listing.price != null && (
+                  <span className="flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    {listing.price.toLocaleString("ar-SA")} {listing.priceUnit ?? ""}
+                  </span>
+                )}
+                {(listing.location ?? (listing as { city?: string }).city) && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {(listing as { city?: string }).city ?? listing.location}
+                  </span>
+                )}
+                {listing.sellerName && <span>👤 {listing.sellerName}</span>}
+                <span className="text-muted-foreground/60">{relativeTime(listing.createdAt)}</span>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                  onClick={() => handleApprove(listing.id)}
+                  disabled={approveMutation.isPending}
+                  data-testid={`button-approve-${listing.id}`}
+                >
+                  <Check className="h-4 w-4" /> موافقة
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 border-red-200 text-red-600 hover:bg-red-50 gap-1.5"
+                  onClick={() => handleReject(listing.id)}
+                  disabled={rejectMutation.isPending}
+                  data-testid={`button-reject-${listing.id}`}
+                >
+                  <X className="h-4 w-4" /> رفض
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-destructive px-2"
+                  onClick={() => handleDelete(listing.id)}
+                  disabled={deletingId === listing.id}
+                  data-testid={`button-delete-${listing.id}`}
+                >
+                  {deletingId === listing.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AllListingsSection({ onInvalidate }: { onInvalidate: () => void }) {
+  const { toast } = useToast();
+  const [statusFilter, setStatusFilter]   = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [search, setSearch]               = useState("");
+  const [deletingId, setDeletingId]       = useState<number | null>(null);
+  const [featuringId, setFeaturingId]     = useState<number | null>(null);
+
+  const { data: listings, isLoading } = useAdminListListings(
+    { status: statusFilter === "all" ? undefined : statusFilter, category: categoryFilter === "all" ? undefined : categoryFilter },
+    { query: { enabled: isAdminLoggedIn(), queryKey: getAdminListListingsQueryKey({ status: statusFilter, category: categoryFilter }) } }
+  );
+
+  const filtered = (listings ?? []).filter((l) =>
+    !search || l.titleAr.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("هل أنت متأكد من الحذف؟")) return;
+    setDeletingId(id);
+    try {
+      await apiFetch(`/api/admin/listings/${id}`, "DELETE");
+      onInvalidate();
+      toast({ title: "تم الحذف" });
+    } catch {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    } finally { setDeletingId(null); }
+  };
+
+  const handleFeature = async (id: number, featured: boolean) => {
+    setFeaturingId(id);
+    try {
+      await apiFetch(`/api/admin/listings/${id}/feature`, "PATCH", { featured });
+      onInvalidate();
+      toast({ title: featured ? "⭐ تم تمييز الإعلان" : "تم إلغاء التمييز" });
+    } catch {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    } finally { setFeaturingId(null); }
+  };
+
+  const catNames: Record<string, string> = {
+    "real-estate": "عقارات", "livestock": "مواشي", "birds": "طيور",
+    "vegetables": "خضروات", "clothes": "ملابس", "home-appliances": "أجهزة منزلية", "doctors": "مواعيد طبية",
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold">كل الإعلانات</h2>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-[160px]">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input placeholder="بحث بالعنوان..." className="pr-9 h-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44" data-testid="select-status-filter">
-            <SelectValue placeholder="الحالة" />
+          <SelectTrigger className="w-40 h-10" data-testid="select-status-filter">
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">جميع الحالات</SelectItem>
@@ -198,95 +390,443 @@ export default function Admin() {
           </SelectContent>
         </Select>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-44" data-testid="select-category-filter">
-            <SelectValue placeholder="التصنيف" />
+          <SelectTrigger className="w-44 h-10" data-testid="select-category-filter">
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">جميع التصنيفات</SelectItem>
-            {Object.entries(categoryNames).map(([slug, name]) => (
-              <SelectItem key={slug} value={slug}>{name}</SelectItem>
-            ))}
+            {Object.entries(catNames).map(([s, n]) => <SelectItem key={s} value={s}>{n}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Listings Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>إدارة الإعلانات</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          {listingsLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 rounded" />)}
-            </div>
-          ) : listings && listings.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">العنوان</TableHead>
-                  <TableHead className="text-right">التصنيف</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">البائع</TableHead>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">الإجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {listings.map((listing) => (
-                  <TableRow key={listing.id} data-testid={`row-listing-${listing.id}`}>
-                    <TableCell className="font-medium max-w-[200px]">
-                      <span className="line-clamp-1">{listing.titleAr}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {categoryNames[listing.categorySlug] ?? listing.categorySlug}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {listing.status === "approved" && <Badge className="bg-green-100 text-green-800 hover:bg-green-100">موافق</Badge>}
-                      {listing.status === "pending" && <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">مراجعة</Badge>}
-                      {listing.status === "rejected" && <Badge className="bg-red-100 text-red-800 hover:bg-red-100">مرفوض</Badge>}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{listing.sellerName ?? "-"}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                      {new Date(listing.createdAt).toLocaleDateString("ar-SA")}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        {listing.status !== "approved" && (
-                          <Button size="sm" variant="ghost" className="text-green-600 hover:bg-green-50"
-                            onClick={() => handleApprove(listing.id)} disabled={approveMutation.isPending}
-                            data-testid={`button-approve-${listing.id}`}>
-                            <Check className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {listing.status !== "rejected" && (
-                          <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50"
-                            onClick={() => handleReject(listing.id)} disabled={rejectMutation.isPending}
-                            data-testid={`button-reject-${listing.id}`}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDelete(listing.id)} disabled={deleteMutation.isPending}
-                          data-testid={`button-delete-${listing.id}`}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+      {isLoading ? (
+        <div className="space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <List className="h-12 w-12 mx-auto mb-3 opacity-30" />
+          <p>لا توجد إعلانات بهذه الفلاتر</p>
+        </div>
+      ) : (
+        <div className="bg-card rounded-2xl border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  <th className="text-right p-3 font-semibold text-muted-foreground">الإعلان</th>
+                  <th className="text-right p-3 font-semibold text-muted-foreground hidden sm:table-cell">التصنيف</th>
+                  <th className="text-right p-3 font-semibold text-muted-foreground">الحالة</th>
+                  <th className="text-right p-3 font-semibold text-muted-foreground hidden md:table-cell">التاريخ</th>
+                  <th className="text-right p-3 font-semibold text-muted-foreground">الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filtered.map((listing) => (
+                  <tr key={listing.id} className="hover:bg-muted/30 transition-colors" data-testid={`row-listing-${listing.id}`}>
+                    <td className="p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg overflow-hidden bg-muted shrink-0">
+                          {listing.imageUrl
+                            ? <img src={listing.imageUrl} alt="" className="h-full w-full object-cover" />
+                            : <div className="h-full w-full flex items-center justify-center text-lg">
+                                {catNames[listing.categorySlug]?.[0] ?? "📋"}
+                              </div>
+                          }
+                        </div>
+                        <div>
+                          <Link href={`/listing/${listing.id}`}>
+                            <p className="font-medium line-clamp-1 hover:text-primary cursor-pointer">{listing.titleAr}</p>
+                          </Link>
+                          {listing.sellerName && <p className="text-xs text-muted-foreground">{listing.sellerName}</p>}
+                        </div>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                    <td className="p-3 hidden sm:table-cell">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CAT_COLORS[listing.categorySlug] ?? "bg-gray-100 text-gray-700"}`}>
+                        {listing.categoryNameAr}
+                      </span>
+                    </td>
+                    <td className="p-3"><StatusBadge status={listing.status} /></td>
+                    <td className="p-3 text-muted-foreground hidden md:table-cell whitespace-nowrap text-xs">
+                      {relativeTime(listing.createdAt)}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex gap-1 items-center">
+                        <button
+                          onClick={() => handleFeature(listing.id, !listing.featured)}
+                          disabled={featuringId === listing.id}
+                          className={`p-1.5 rounded-lg transition-colors ${listing.featured ? "text-amber-500 bg-amber-50" : "text-muted-foreground hover:text-amber-500 hover:bg-amber-50"}`}
+                          title={listing.featured ? "إلغاء التمييز" : "تمييز"}
+                          data-testid={`button-feature-${listing.id}`}
+                        >
+                          {featuringId === listing.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(listing.id)}
+                          disabled={deletingId === listing.id}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          data-testid={`button-delete-${listing.id}`}
+                        >
+                          {deletingId === listing.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <List className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>لا توجد إعلانات بهذه الفلاتر</p>
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-3 border-t text-sm text-muted-foreground">
+            {filtered.length} إعلان
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoriesSection() {
+  const { data: categories, isLoading } = useListCategories();
+
+  const catEmojis: Record<string, string> = {
+    "real-estate": "🏠", "livestock": "🐄", "birds": "🦜",
+    "vegetables": "🥦", "clothes": "👗", "home-appliances": "📺", "doctors": "🩺",
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">التصنيفات</h2>
+        <Link href="/">
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" /> عرض الموقع
+          </Button>
+        </Link>
+      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {(categories ?? []).map((cat) => (
+            <Link href={`/category/${cat.slug}`} key={cat.slug}>
+              <div className="bg-card rounded-2xl border p-4 hover:shadow-md transition-all group cursor-pointer flex items-center gap-4">
+                <div className={`text-3xl p-3 rounded-xl ${CAT_COLORS[cat.slug] ?? "bg-gray-100"}`}>
+                  {catEmojis[cat.slug] ?? "📋"}
+                </div>
+                <div>
+                  <p className="font-bold text-base">{cat.nameAr}</p>
+                  <p className="text-sm text-muted-foreground">{cat.listingCount} إعلان</p>
+                </div>
+                <ChevronLeft className="h-4 w-4 text-muted-foreground mr-auto group-hover:text-primary transition-colors" />
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+      <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 text-sm text-amber-700">
+        <strong>ملاحظة:</strong> لإدارة التصنيفات (إضافة/حذف)، استخدم لوحة Supabase مباشرة في جدول <code className="bg-amber-100 px-1 rounded">categories</code>.
+      </div>
+    </div>
+  );
+}
+
+function AppointmentsSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showForm, setShowForm]     = useState(false);
+  const [form, setForm] = useState({
+    doctorNameAr: "", whatsappNumber: "", specialty: "",
+    clinicLocation: "", consultationFee: "",
+  });
+
+  const { data: appointments, isLoading } = useListAppointments();
+  const createMutation = useCreateAppointment();
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("حذف هذا الطبيب؟")) return;
+    setDeletingId(id);
+    try {
+      await apiFetch(`/api/admin/appointments/${id}`, "DELETE");
+      queryClient.invalidateQueries({ queryKey: getListAppointmentsQueryKey() });
+      toast({ title: "تم حذف الموعد" });
+    } catch {
+      toast({ title: "حدث خطأ", variant: "destructive" });
+    } finally { setDeletingId(null); }
+  };
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.doctorNameAr || !form.whatsappNumber) return;
+    createMutation.mutate(
+      {
+        data: {
+          doctorNameAr:    form.doctorNameAr,
+          whatsappNumber:  form.whatsappNumber,
+          specialty:       form.specialty   || undefined,
+          clinicLocation:  form.clinicLocation || undefined,
+          consultationFee: form.consultationFee ? Number(form.consultationFee) : undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListAppointmentsQueryKey() });
+          toast({ title: "✅ تمت إضافة الطبيب" });
+          setForm({ doctorNameAr: "", whatsappNumber: "", specialty: "", clinicLocation: "", consultationFee: "" });
+          setShowForm(false);
+        },
+        onError: () => toast({ title: "حدث خطأ", variant: "destructive" }),
+      }
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">المواعيد الطبية</h2>
+        <Button className="gap-2" size="sm" onClick={() => setShowForm(!showForm)} data-testid="button-add-doctor">
+          <Plus className="h-4 w-4" />
+          {showForm ? "إلغاء" : "إضافة طبيب"}
+        </Button>
+      </div>
+
+      {/* Add form */}
+      {showForm && (
+        <div className="bg-card rounded-2xl border p-6">
+          <h3 className="font-bold mb-4">إضافة طبيب جديد</h3>
+          <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>اسم الطبيب *</Label>
+              <Input placeholder="د. محمد علي" value={form.doctorNameAr}
+                onChange={(e) => setForm({ ...form, doctorNameAr: e.target.value })}
+                required data-testid="input-doctor-name" />
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="space-y-1.5">
+              <Label>رقم واتساب *</Label>
+              <Input placeholder="967XXXXXXXXX" dir="ltr" value={form.whatsappNumber}
+                onChange={(e) => setForm({ ...form, whatsappNumber: e.target.value })}
+                required data-testid="input-doctor-whatsapp" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>التخصص</Label>
+              <Input placeholder="طب عام، أسنان، أطفال..." value={form.specialty}
+                onChange={(e) => setForm({ ...form, specialty: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>موقع العيادة</Label>
+              <Input placeholder="صنعاء - حي الروضة" value={form.clinicLocation}
+                onChange={(e) => setForm({ ...form, clinicLocation: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>رسوم الكشف</Label>
+              <Input type="number" placeholder="0" value={form.consultationFee}
+                onChange={(e) => setForm({ ...form, consultationFee: e.target.value })} />
+            </div>
+            <div className="flex items-end">
+              <Button type="submit" className="w-full gap-2" disabled={createMutation.isPending} data-testid="button-save-doctor">
+                {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                حفظ الطبيب
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* List */}
+      {isLoading ? (
+        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}</div>
+      ) : !appointments?.length ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Stethoscope className="h-14 w-14 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">لا يوجد أطباء مضافون بعد</p>
+          <p className="text-sm mt-1">أضف أول طبيب باستخدام الزر أعلاه</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {appointments.map((appt) => (
+            <div key={appt.id} className="bg-card rounded-2xl border p-4 flex gap-4" data-testid={`card-doctor-${appt.id}`}>
+              <div className="h-12 w-12 rounded-xl bg-[#3DAA82]/10 flex items-center justify-center text-2xl shrink-0">🩺</div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold">{appt.doctorNameAr}</p>
+                {appt.specialty && <p className="text-sm text-primary">{appt.specialty}</p>}
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                  {appt.clinicLocation && (
+                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{appt.clinicLocation}</span>
+                  )}
+                  {appt.consultationFee != null && (
+                    <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{appt.consultationFee} ريال</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 shrink-0">
+                <a href={`https://wa.me/${appt.whatsappNumber.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" className="bg-[#25D366] hover:bg-[#128C7E] text-white gap-1 h-8 text-xs px-3" data-testid={`button-wa-doctor-${appt.id}`}>
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    واتساب
+                  </Button>
+                </a>
+                <Button
+                  size="sm" variant="ghost"
+                  className="text-muted-foreground hover:text-destructive h-8 px-3 text-xs"
+                  onClick={() => handleDelete(appt.id)}
+                  disabled={deletingId === appt.id}
+                  data-testid={`button-delete-doctor-${appt.id}`}
+                >
+                  {deletingId === appt.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── main ─────────────────────────────────────────────────────────────────────
+
+export default function Admin() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const [section, setSection] = useState<Section>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isAdminLoggedIn()) setLocation("/admin/login");
+  }, [setLocation]);
+
+  const { data: stats, isLoading: statsLoading } = useGetAdminStats({
+    query: { enabled: isAdminLoggedIn(), meta: { headers: authHeaders() } },
+  });
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: getAdminListListingsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: ["admin-listings-pending"] });
+  };
+
+  const handleLogout = async () => {
+    const token = getAdminToken();
+    if (token) {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      await fetch(`${base}/api/auth/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
+    localStorage.removeItem("wardan_admin_token");
+    queryClient.clear();
+    setLocation("/admin/login");
+  };
+
+  if (!isAdminLoggedIn()) return null;
+
+  const pendingCount = stats?.pendingListings ?? 0;
+
+  return (
+    <div className="flex h-screen bg-background overflow-hidden" data-testid="text-admin-title">
+
+      {/* ── Sidebar ── */}
+      <>
+        {/* Mobile overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        <aside className={`
+          fixed top-0 right-0 h-full w-64 bg-[#1D2B50] text-white z-50 flex flex-col
+          transition-transform duration-300
+          ${sidebarOpen ? "translate-x-0" : "translate-x-full"}
+          lg:translate-x-0 lg:static lg:z-auto
+        `}>
+          {/* Logo */}
+          <div className="p-5 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <img src="/logo.jpeg" alt="Wardan" className="h-10 w-10 rounded-xl object-cover" />
+              <div>
+                <p className="font-black text-base tracking-wide">WARDAN</p>
+                <p className="text-xs text-white/50">لوحة الإدارة</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Nav */}
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+            {NAV.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => { setSection(item.id); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  section === item.id
+                    ? "bg-[#3DAA82] text-white shadow-sm"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                }`}
+                data-testid={`nav-${item.id}`}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+                {item.id === "pending" && pendingCount > 0 && (
+                  <span className="mr-auto bg-amber-400 text-amber-900 text-xs font-bold px-2 py-0.5 rounded-full min-w-[1.5rem] text-center">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Bottom actions */}
+          <div className="p-3 border-t border-white/10 space-y-2">
+            <Link href="/">
+              <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-white/60 hover:bg-white/10 hover:text-white transition-colors">
+                <ChevronLeft className="h-4 w-4" />
+                العودة للموقع
+              </button>
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-white/60 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+              data-testid="button-logout"
+            >
+              <LogOut className="h-4 w-4" />
+              تسجيل الخروج
+            </button>
+          </div>
+        </aside>
+      </>
+
+      {/* ── Main Content ── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Top bar (mobile) */}
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 border-b bg-card shrink-0">
+          <div className="flex items-center gap-2">
+            <img src="/logo.jpeg" alt="" className="h-8 w-8 rounded-lg object-cover" />
+            <span className="font-bold">{NAV.find((n) => n.id === section)?.label}</span>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg hover:bg-muted"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-5xl mx-auto">
+            {section === "overview"     && <OverviewSection stats={stats} statsLoading={statsLoading} onGoPending={() => setSection("pending")} />}
+            {section === "pending"      && <PendingSection onInvalidate={invalidateAll} />}
+            {section === "listings"     && <AllListingsSection onInvalidate={invalidateAll} />}
+            {section === "categories"   && <CategoriesSection />}
+            {section === "appointments" && <AppointmentsSection />}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

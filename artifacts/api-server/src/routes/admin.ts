@@ -122,4 +122,56 @@ router.patch("/admin/listings/:id/reject", requireAdmin, async (req, res) => {
   }
 });
 
+router.patch("/admin/listings/:id/feature", requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    const { featured } = req.body as { featured: boolean };
+
+    const supabase = getServerSupabase();
+    const { data, error } = await supabase
+      .from("listings")
+      .update({ featured: !!featured })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error || !data) return res.status(404).json({ error: "Not found" });
+    res.json(mapListing(data as SupabaseListing));
+  } catch (err) {
+    req.log.error({ err }, "Failed to feature listing");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.delete("/admin/listings/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+    const supabase = getServerSupabase();
+    const { error } = await supabase.from("listings").delete().eq("id", id);
+    if (error) throw error;
+    res.status(204).send();
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete listing");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.delete("/admin/appointments/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+    const supabase = getServerSupabase();
+    const { error } = await supabase.from("appointments").delete().eq("id", id);
+    if (error) throw error;
+    res.status(204).send();
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete appointment");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;
