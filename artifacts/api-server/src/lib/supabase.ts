@@ -2,9 +2,10 @@ import { createClient } from "@supabase/supabase-js";
 
 export function getServerSupabase() {
   const url = process.env["SUPABASE_URL"];
-  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  // Prefer service role key (bypasses RLS); fall back to anon key for read-only public routes
+  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? process.env["SUPABASE_ANON_KEY"];
   if (!url || !key) {
-    throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required");
+    throw new Error("SUPABASE_URL environment variable is required (and SUPABASE_SERVICE_ROLE_KEY for admin operations)");
   }
   return createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
