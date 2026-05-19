@@ -37,7 +37,7 @@ function mapListing(r: Record<string, unknown>) {
 // GET /listings — list approved listings with optional filters
 router.get("/listings", async (req, res) => {
   try {
-    const { category, search, page = "1", limit = "20" } = req.query as Record<string, string>;
+    const { category, search, city, page = "1", limit = "20" } = req.query as Record<string, string>;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(parseInt(limit, 10) || 20, 100);
     const offset = (pageNum - 1) * limitNum;
@@ -52,6 +52,10 @@ router.get("/listings", async (req, res) => {
     if (search) {
       params.push(`%${search}%`);
       conditions.push(`(title_ar ILIKE $${params.length} OR description_ar ILIKE $${params.length})`);
+    }
+    if (city) {
+      params.push(city);
+      conditions.push(`city = $${params.length}`);
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";

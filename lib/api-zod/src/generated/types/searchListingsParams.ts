@@ -9,4 +9,5 @@
 export type SearchListingsParams = {
 q: string;
 category?: string;
+city?: string;
 };

@@ -28,10 +28,14 @@ const SORT_OPTIONS = [
   { value: "price_desc", label: "السعر: الأعلى" },
 ];
 
-const EGYPT_CITIES = [
-  "الكل", "الجيزة", "وردان", "6 أكتوبر", "الشيخ زايد", "العمرانية",
-  "الهرم", "كرداسة", "أبو النمرس", "البدرشين",
-  "القاهرة", "الإسكندرية", "طنطا", "المنصورة",
+const EGYPT_GOVERNORATES = [
+  "الكل",
+  "القاهرة", "الجيزة", "الإسكندرية", "الدقهلية", "البحر الأحمر",
+  "البحيرة", "الفيوم", "الغربية", "الإسماعيلية", "المنوفية",
+  "المنيا", "القليوبية", "الوادي الجديد", "السويس", "أسوان",
+  "أسيوط", "بني سويف", "بورسعيد", "دمياط", "الشرقية",
+  "جنوب سيناء", "كفر الشيخ", "مطروح", "الأقصر", "قنا",
+  "شمال سيناء", "سوهاج",
 ];
 
 function CardSkeleton() {
@@ -79,19 +83,12 @@ export default function Category() {
   const hasFilters = searchQuery || sort !== "newest" || city !== "الكل";
 
   const { data: result, isLoading } = useListListings(
-    { category: slug, search: searchQuery || undefined, limit: 60 },
-    { query: { queryKey: ["listings", slug, searchQuery] } }
+    { category: slug, search: searchQuery || undefined, city: city !== "الكل" ? city : undefined, limit: 60 },
+    { query: { queryKey: ["listings", slug, searchQuery, city] } }
   );
 
-  // Client-side sort + city filter
+  // Client-side sort
   let listings = result?.listings ?? [];
-
-  if (city !== "الكل") {
-    listings = listings.filter((l) => {
-      const loc = [l.city, l.location].filter(Boolean).join(" ");
-      return loc.includes(city);
-    });
-  }
 
   if (sort === "oldest") {
     listings = [...listings].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -189,7 +186,7 @@ export default function Category() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
-                    {EGYPT_CITIES.map((c) => (
+                    {EGYPT_GOVERNORATES.map((c) => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
                   </SelectContent>

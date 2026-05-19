@@ -36,13 +36,13 @@ function mapListing(r: Record<string, unknown>) {
 
 router.get("/search", async (req, res) => {
   try {
-    const { q = "", category, page = "1", limit = "20" } = req.query as Record<string, string>;
+    const { q = "", category, city, page = "1", limit = "20" } = req.query as Record<string, string>;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(parseInt(limit, 10) || 20, 100);
     const offset = (pageNum - 1) * limitNum;
 
     if (!q.trim()) {
-      return res.json({ listings: [], total: 0, page: pageNum, limit: limitNum });
+      return res.json([]);
     }
 
     const conditions = ["status = 'approved'", "(title_ar ILIKE $1 OR description_ar ILIKE $1 OR category_name_ar ILIKE $1)"];
@@ -51,6 +51,10 @@ router.get("/search", async (req, res) => {
     if (category) {
       params.push(category);
       conditions.push(`category_slug = $${params.length}`);
+    }
+    if (city) {
+      params.push(city);
+      conditions.push(`city = $${params.length}`);
     }
 
     const where = `WHERE ${conditions.join(" AND ")}`;
@@ -61,12 +65,7 @@ router.get("/search", async (req, res) => {
       params
     );
 
-    res.json({
-      listings: rows.map(mapListing),
-      total: rows.length,
-      page: pageNum,
-      limit: limitNum,
-    });
+    res.json(rows.map(mapListing));
   } catch (err) {
     req.log.error({ err }, "Failed to search listings");
     res.status(500).json({ error: "Internal server error" });

@@ -9,6 +9,7 @@
 export type ListListingsParams = {
 category?: string;
 search?: string;
+city?: string;
 page?: number;
 limit?: number;
 };

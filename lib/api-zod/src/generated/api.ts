@@ -37,6 +37,7 @@ export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem)
 export const ListListingsQueryParams = zod.object({
   "category": zod.coerce.string().optional(),
   "search": zod.coerce.string().optional(),
+  "city": zod.coerce.string().optional(),
   "page": zod.coerce.number().optional(),
   "limit": zod.coerce.number().optional()
 })
@@ -181,7 +182,8 @@ export const ListFeaturedListingsResponse = zod.array(ListFeaturedListingsRespon
  */
 export const SearchListingsQueryParams = zod.object({
   "q": zod.coerce.string(),
-  "category": zod.coerce.string().optional()
+  "category": zod.coerce.string().optional(),
+  "city": zod.coerce.string().optional()
 })
 
 export const SearchListingsResponseItem = zod.object({

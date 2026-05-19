@@ -143,6 +143,7 @@ export interface AdminStats {
 export type ListListingsParams = {
 category?: string;
 search?: string;
+city?: string;
 page?: number;
 limit?: number;
 };
@@ -150,6 +151,7 @@ limit?: number;
 export type SearchListingsParams = {
 q: string;
 category?: string;
+city?: string;
 };
 
 export type AdminListListingsParams = {
