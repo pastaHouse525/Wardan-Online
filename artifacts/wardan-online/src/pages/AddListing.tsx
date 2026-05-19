@@ -29,7 +29,7 @@ const schema = z.object({
   descriptionAr: z.string().optional(),
   price: z.string().optional(),
   priceUnit: z.string().optional(),
-  city: z.string().optional(),
+  city: z.string().min(1, "اختر المحافظة"),
   location: z.string().optional(),
   sellerName: z.string().optional(),
   phoneNumber: z.string().optional(),
@@ -87,7 +87,7 @@ export default function AddListing() {
     resolver: zodResolver(schema),
     defaultValues: {
       titleAr: "", categorySlug: "", descriptionAr: "",
-      price: "", priceUnit: "EGP", city: "القاهرة", location: "",
+      price: "", priceUnit: "EGP", city: "", location: "",
       sellerName: "", phoneNumber: "", whatsappNumber: "",
     },
   });
@@ -340,7 +340,7 @@ export default function AddListing() {
             <div className="space-y-4">
               <FormField control={form.control} name="city" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>المحافظة / المدينة</FormLabel>
+                  <FormLabel className="text-base font-semibold">المحافظة *</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger className="h-12" data-testid="select-city">

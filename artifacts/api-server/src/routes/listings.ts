@@ -3,6 +3,15 @@ import { query, queryOne, queryCount } from "../lib/db";
 
 const router = Router();
 
+const EGYPT_GOVERNORATES = new Set([
+  "القاهرة", "الجيزة", "الإسكندرية", "القليوبية", "الشرقية",
+  "الدقهلية", "البحيرة", "الغربية", "المنوفية", "كفر الشيخ",
+  "دمياط", "بورسعيد", "الإسماعيلية", "السويس", "شمال سيناء",
+  "جنوب سيناء", "الفيوم", "بني سويف", "المنيا", "أسيوط",
+  "سوهاج", "قنا", "الأقصر", "أسوان", "البحر الأحمر",
+  "الوادي الجديد", "مطروح",
+]);
+
 function parseImageUrls(raw: unknown): string[] {
   if (!raw) return [];
   if (typeof raw === "string") {
@@ -119,6 +128,9 @@ router.post("/listings", async (req, res) => {
 
     if (!titleAr || !categorySlug || !whatsappNumber) {
       return res.status(400).json({ error: "titleAr, categorySlug, and whatsappNumber are required" });
+    }
+    if (!city || !EGYPT_GOVERNORATES.has(city)) {
+      return res.status(400).json({ error: "يجب اختيار محافظة صحيحة من القائمة" });
     }
 
     const cat = await queryOne<{ name_ar: string }>(
