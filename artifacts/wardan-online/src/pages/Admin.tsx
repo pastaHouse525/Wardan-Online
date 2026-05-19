@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import {
   LayoutDashboard, List, CheckCircle, XCircle, Clock, Tag, Stethoscope,
-  Trash2, Check, X, ChevronDown
+  Trash2, Check, X, LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { getAdminToken, adminLogout, isAdminLoggedIn } from "@/lib/adminAuth";
 
 const categoryNames: Record<string, string> = {
   "real-estate": "عقارات",
@@ -30,19 +32,44 @@ const categoryNames: Record<string, string> = {
   "doctors": "مواعيد طبية",
 };
 
+function authHeaders() {
+  const token = getAdminToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export default function Admin() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  const { data: stats, isLoading: statsLoading } = useGetAdminStats();
+  useEffect(() => {
+    if (!isAdminLoggedIn()) {
+      setLocation("/admin/login");
+    }
+  }, [setLocation]);
+
+  const queryOptions = {
+    query: {
+      enabled: isAdminLoggedIn(),
+      meta: { headers: authHeaders() },
+    },
+  };
+
+  const { data: stats, isLoading: statsLoading } = useGetAdminStats(queryOptions);
   const { data: listings, isLoading: listingsLoading } = useAdminListListings(
     {
       status: statusFilter === "all" ? undefined : statusFilter,
       category: categoryFilter === "all" ? undefined : categoryFilter,
     },
-    { query: { queryKey: getAdminListListingsQueryKey({ status: statusFilter, category: categoryFilter }) } }
+    {
+      query: {
+        enabled: isAdminLoggedIn(),
+        queryKey: getAdminListListingsQueryKey({ status: statusFilter, category: categoryFilter }),
+        meta: { headers: authHeaders() },
+      },
+    }
   );
 
   const approveMutation = useApproveListing();
@@ -55,25 +82,41 @@ export default function Admin() {
   };
 
   const handleApprove = (id: number) => {
-    approveMutation.mutate({ id }, {
-      onSuccess: () => { invalidate(); toast({ title: "تمت الموافقة على الإعلان" }); },
-      onError: () => toast({ title: "حدث خطأ", variant: "destructive" }),
-    });
+    approveMutation.mutate(
+      { id },
+      {
+        onSuccess: () => { invalidate(); toast({ title: "تمت الموافقة على الإعلان" }); },
+        onError: () => toast({ title: "حدث خطأ", variant: "destructive" }),
+      }
+    );
   };
 
   const handleReject = (id: number) => {
-    rejectMutation.mutate({ id }, {
-      onSuccess: () => { invalidate(); toast({ title: "تم رفض الإعلان" }); },
-      onError: () => toast({ title: "حدث خطأ", variant: "destructive" }),
-    });
+    rejectMutation.mutate(
+      { id },
+      {
+        onSuccess: () => { invalidate(); toast({ title: "تم رفض الإعلان" }); },
+        onError: () => toast({ title: "حدث خطأ", variant: "destructive" }),
+      }
+    );
   };
 
   const handleDelete = (id: number) => {
     if (!confirm("هل أنت متأكد من حذف هذا الإعلان؟")) return;
-    deleteMutation.mutate({ id }, {
-      onSuccess: () => { invalidate(); toast({ title: "تم حذف الإعلان" }); },
-      onError: () => toast({ title: "حدث خطأ", variant: "destructive" }),
-    });
+    deleteMutation.mutate(
+      { id },
+      {
+        onSuccess: () => { invalidate(); toast({ title: "تم حذف الإعلان" }); },
+        onError: () => toast({ title: "حدث خطأ", variant: "destructive" }),
+      }
+    );
+  };
+
+  const handleLogout = async () => {
+    const token = getAdminToken();
+    if (token) await adminLogout(token);
+    queryClient.clear();
+    setLocation("/admin/login");
   };
 
   const statCards = [
@@ -85,14 +128,22 @@ export default function Admin() {
     { label: "المواعيد الطبية", value: stats?.totalAppointments, icon: <Stethoscope className="h-5 w-5" />, color: "text-teal-600" },
   ];
 
+  if (!isAdminLoggedIn()) return null;
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-8">
-        <LayoutDashboard className="h-7 w-7 text-primary" />
-        <h1 className="text-3xl font-bold" data-testid="text-admin-title">لوحة الإدارة</h1>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <LayoutDashboard className="h-7 w-7 text-primary" />
+          <h1 className="text-3xl font-bold" data-testid="text-admin-title">لوحة الإدارة</h1>
+        </div>
+        <Button variant="outline" className="gap-2" onClick={handleLogout} data-testid="button-logout">
+          <LogOut className="h-4 w-4" />
+          تسجيل الخروج
+        </Button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         {statsLoading
           ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
@@ -146,7 +197,6 @@ export default function Admin() {
             <SelectItem value="rejected">مرفوضة</SelectItem>
           </SelectContent>
         </Select>
-
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-44" data-testid="select-category-filter">
             <SelectValue placeholder="التصنيف" />
@@ -198,46 +248,29 @@ export default function Admin() {
                       {listing.status === "pending" && <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">مراجعة</Badge>}
                       {listing.status === "rejected" && <Badge className="bg-red-100 text-red-800 hover:bg-red-100">مرفوض</Badge>}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {listing.sellerName ?? "-"}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{listing.sellerName ?? "-"}</TableCell>
                     <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                       {new Date(listing.createdAt).toLocaleDateString("ar-SA")}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         {listing.status !== "approved" && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                            onClick={() => handleApprove(listing.id)}
-                            disabled={approveMutation.isPending}
-                            data-testid={`button-approve-${listing.id}`}
-                          >
+                          <Button size="sm" variant="ghost" className="text-green-600 hover:bg-green-50"
+                            onClick={() => handleApprove(listing.id)} disabled={approveMutation.isPending}
+                            data-testid={`button-approve-${listing.id}`}>
                             <Check className="h-4 w-4" />
                           </Button>
                         )}
                         {listing.status !== "rejected" && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleReject(listing.id)}
-                            disabled={rejectMutation.isPending}
-                            data-testid={`button-reject-${listing.id}`}
-                          >
+                          <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50"
+                            onClick={() => handleReject(listing.id)} disabled={rejectMutation.isPending}
+                            data-testid={`button-reject-${listing.id}`}>
                             <X className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(listing.id)}
-                          disabled={deleteMutation.isPending}
-                          data-testid={`button-delete-${listing.id}`}
-                        >
+                        <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(listing.id)} disabled={deleteMutation.isPending}
+                          data-testid={`button-delete-${listing.id}`}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

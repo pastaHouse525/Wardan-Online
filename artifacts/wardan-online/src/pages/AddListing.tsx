@@ -2,29 +2,21 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLocation } from "wouter";
-import { Plus, CheckCircle } from "lucide-react";
+import { Plus, CheckCircle, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useCreateListing, useListCategories, getListFeaturedListingsQueryKey, getListListingsQueryKey } from "@workspace/api-client-react";
+import { useCreateListing, getListFeaturedListingsQueryKey, getListListingsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { uploadListingImage } from "@/lib/supabase";
 
 const schema = z.object({
   titleAr: z.string().min(3, "العنوان يجب أن يكون 3 أحرف على الأقل"),
@@ -55,23 +47,41 @@ export default function AddListing() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [submitted, setSubmitted] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      titleAr: "",
-      categorySlug: "",
-      price: "",
-      priceUnit: "ريال",
-      descriptionAr: "",
-      location: "",
-      sellerName: "",
-      whatsappNumber: "",
-      imageUrl: "",
+      titleAr: "", categorySlug: "", price: "", priceUnit: "ريال",
+      descriptionAr: "", location: "", sellerName: "", whatsappNumber: "", imageUrl: "",
     },
   });
 
   const createListing = useCreateListing();
+
+  const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "الصورة كبيرة جداً", description: "الحد الأقصى 5 ميغابايت", variant: "destructive" });
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const url = await uploadListingImage(file);
+      form.setValue("imageUrl", url);
+      setImagePreview(url);
+      toast({ title: "تم رفع الصورة بنجاح" });
+    } catch (err) {
+      toast({ title: "فشل رفع الصورة", description: "تأكد من اتصالك بالإنترنت", variant: "destructive" });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const onSubmit = (data: FormData) => {
     createListing.mutate(
@@ -95,11 +105,7 @@ export default function AddListing() {
           setSubmitted(true);
         },
         onError: () => {
-          toast({
-            title: "حدث خطأ",
-            description: "تعذر إرسال الإعلان. حاول مرة أخرى.",
-            variant: "destructive",
-          });
+          toast({ title: "حدث خطأ", description: "تعذر إرسال الإعلان. حاول مرة أخرى.", variant: "destructive" });
         },
       }
     );
@@ -110,16 +116,10 @@ export default function AddListing() {
       <div className="max-w-lg mx-auto px-4 py-20 text-center">
         <CheckCircle className="h-20 w-20 mx-auto mb-6 text-primary" />
         <h2 className="text-2xl font-bold mb-3">تم إرسال إعلانك بنجاح!</h2>
-        <p className="text-muted-foreground mb-8">
-          إعلانك قيد المراجعة وسيظهر بعد الموافقة عليه
-        </p>
+        <p className="text-muted-foreground mb-8">إعلانك قيد المراجعة وسيظهر بعد الموافقة عليه</p>
         <div className="flex gap-3 justify-center">
-          <Button onClick={() => { setSubmitted(false); form.reset(); }} variant="outline" data-testid="button-add-another">
-            أضف إعلاناً آخر
-          </Button>
-          <Button onClick={() => setLocation("/")} data-testid="button-go-home">
-            العودة للرئيسية
-          </Button>
+          <Button onClick={() => { setSubmitted(false); form.reset(); setImagePreview(null); }} variant="outline">أضف إعلاناً آخر</Button>
+          <Button onClick={() => setLocation("/")}>العودة للرئيسية</Button>
         </div>
       </div>
     );
@@ -133,173 +133,126 @@ export default function AddListing() {
       <div className="bg-card rounded-2xl border p-6 shadow-sm">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-            <FormField
-              control={form.control}
-              name="titleAr"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>عنوان الإعلان *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="مثال: شقة للبيع في الرياض 3 غرف" {...field} data-testid="input-title" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="titleAr" render={({ field }) => (
+              <FormItem>
+                <FormLabel>عنوان الإعلان *</FormLabel>
+                <FormControl><Input placeholder="مثال: شقة للبيع في الرياض 3 غرف" {...field} data-testid="input-title" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            <FormField
-              control={form.control}
-              name="categorySlug"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>التصنيف *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-category">
-                        <SelectValue placeholder="اختر التصنيف" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.slug} value={cat.slug}>{cat.nameAr}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="categorySlug" render={({ field }) => (
+              <FormItem>
+                <FormLabel>التصنيف *</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-category"><SelectValue placeholder="اختر التصنيف" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.slug} value={cat.slug}>{cat.nameAr}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>السعر</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="0" {...field} data-testid="input-price" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="priceUnit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>وحدة السعر</FormLabel>
-                    <FormControl>
-                      <Input placeholder="ريال" {...field} data-testid="input-price-unit" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="price" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>السعر</FormLabel>
+                  <FormControl><Input type="number" placeholder="0" {...field} data-testid="input-price" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="priceUnit" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>وحدة السعر</FormLabel>
+                  <FormControl><Input placeholder="ريال" {...field} data-testid="input-price-unit" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
 
-            <FormField
-              control={form.control}
-              name="location"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>الموقع</FormLabel>
-                  <FormControl>
-                    <Input placeholder="مثال: الرياض - حي النزهة" {...field} data-testid="input-location" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="location" render={({ field }) => (
+              <FormItem>
+                <FormLabel>الموقع</FormLabel>
+                <FormControl><Input placeholder="مثال: الرياض - حي النزهة" {...field} data-testid="input-location" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            <FormField
-              control={form.control}
-              name="descriptionAr"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>الوصف</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="اكتب وصفاً تفصيلياً للإعلان..."
-                      className="min-h-[100px]"
-                      {...field}
-                      data-testid="textarea-description"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="descriptionAr" render={({ field }) => (
+              <FormItem>
+                <FormLabel>الوصف</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="اكتب وصفاً تفصيلياً للإعلان..." className="min-h-[100px]" {...field} data-testid="textarea-description" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            <FormField
-              control={form.control}
-              name="sellerName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>اسم البائع</FormLabel>
-                  <FormControl>
-                    <Input placeholder="اسمك الكريم" {...field} data-testid="input-seller-name" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="sellerName" render={({ field }) => (
+              <FormItem>
+                <FormLabel>اسم البائع</FormLabel>
+                <FormControl><Input placeholder="اسمك الكريم" {...field} data-testid="input-seller-name" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            <FormField
-              control={form.control}
-              name="whatsappNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>رقم واتساب *</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="tel"
-                      placeholder="966501234567"
-                      dir="ltr"
-                      {...field}
-                      data-testid="input-whatsapp"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="whatsappNumber" render={({ field }) => (
+              <FormItem>
+                <FormLabel>رقم واتساب *</FormLabel>
+                <FormControl>
+                  <Input type="tel" placeholder="966501234567" dir="ltr" {...field} data-testid="input-whatsapp" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            <FormField
-              control={form.control}
-              name="imageUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>رابط الصورة</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="url"
-                      placeholder="https://..."
-                      dir="ltr"
-                      {...field}
-                      data-testid="input-image-url"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+            {/* Image Upload */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">صورة الإعلان</label>
+              <div className="flex gap-3 items-start">
+                <div className="flex-1">
+                  <FormField control={form.control} name="imageUrl" render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Input type="url" placeholder="https://... أو ارفع صورة" dir="ltr" {...field} data-testid="input-image-url" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 shrink-0"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  data-testid="button-upload-image"
+                >
+                  {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  {uploadingImage ? "جاري الرفع..." : "رفع صورة"}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageFile}
+                />
+              </div>
+              {imagePreview && (
+                <div className="mt-2 rounded-lg overflow-hidden border h-40">
+                  <img src={imagePreview} alt="معاينة" className="w-full h-full object-cover" />
+                </div>
               )}
-            />
+            </div>
 
-            <Button
-              type="submit"
-              className="w-full gap-2 h-12 text-base"
-              disabled={createListing.isPending}
-              data-testid="button-submit-listing"
-            >
-              {createListing.isPending ? (
-                "جاري الإرسال..."
-              ) : (
-                <>
-                  <Plus className="h-5 w-5" />
-                  إضافة الإعلان
-                </>
-              )}
+            <Button type="submit" className="w-full gap-2 h-12 text-base" disabled={createListing.isPending || uploadingImage} data-testid="button-submit-listing">
+              {createListing.isPending ? "جاري الإرسال..." : <><Plus className="h-5 w-5" />إضافة الإعلان</>}
             </Button>
           </form>
         </Form>

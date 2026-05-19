@@ -1,99 +1,56 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
-import { listingsTable, categoriesTable } from "@workspace/db";
-import { eq, ilike, or, sql, desc } from "drizzle-orm";
+import { getServerSupabase, mapListing, type SupabaseListing } from "../lib/supabase";
 
 const router = Router();
 
 router.get("/listings", async (req, res) => {
   try {
     const { category, search, page = "1", limit = "20" } = req.query as Record<string, string>;
-    const pageNum = parseInt(page, 10) || 1;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(parseInt(limit, 10) || 20, 100);
-    const offset = (pageNum - 1) * limitNum;
+    const from = (pageNum - 1) * limitNum;
+    const to = from + limitNum - 1;
 
-    let query = db
-      .select()
-      .from(listingsTable)
-      .where(
-        eq(listingsTable.status, "approved")
-      )
-      .orderBy(desc(listingsTable.createdAt))
-      .$dynamic();
+    const supabase = getServerSupabase();
+    let query = supabase
+      .from("listings")
+      .select("*", { count: "exact" })
+      .eq("status", "approved")
+      .order("created_at", { ascending: false });
 
-    const conditions = [eq(listingsTable.status, "approved")];
-    if (category) {
-      conditions.push(eq(listingsTable.categorySlug, category));
-    }
+    if (category) query = query.eq("category_slug", category);
     if (search) {
-      conditions.push(
-        or(
-          ilike(listingsTable.titleAr, `%${search}%`),
-          ilike(listingsTable.descriptionAr, `%${search}%`)
-        )!
-      );
+      query = query.or(`title_ar.ilike.%${search}%,description_ar.ilike.%${search}%`);
     }
+    query = query.range(from, to);
 
-    const allListings = await db
-      .select()
-      .from(listingsTable)
-      .where(sql`${listingsTable.status} = 'approved' ${category ? sql`AND ${listingsTable.categorySlug} = ${category}` : sql``} ${search ? sql`AND (${listingsTable.titleAr} ILIKE ${"%" + search + "%"} OR ${listingsTable.descriptionAr} ILIKE ${"%" + search + "%"})` : sql``}`)
-      .orderBy(desc(listingsTable.createdAt));
+    const { data, error, count } = await query;
+    if (error) throw error;
 
-    const total = allListings.length;
-    const listings = allListings.slice(offset, offset + limitNum);
-
-    res.json({ listings, total, page: pageNum, limit: limitNum });
+    res.json({
+      listings: (data as SupabaseListing[]).map(mapListing),
+      total: count ?? 0,
+      page: pageNum,
+      limit: limitNum,
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to list listings");
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.post("/listings", async (req, res) => {
-  try {
-    const { titleAr, categorySlug, whatsappNumber, descriptionAr, price, priceUnit, location, sellerName, imageUrl } = req.body;
-    if (!titleAr || !categorySlug || !whatsappNumber) {
-      return res.status(400).json({ error: "titleAr, categorySlug, and whatsappNumber are required" });
-    }
-
-    const categoryRecord = await db.select().from(categoriesTable).where(eq(categoriesTable.slug, categorySlug)).limit(1);
-    const categoryNameAr = categoryRecord[0]?.nameAr ?? null;
-
-    const [listing] = await db.insert(listingsTable).values({
-      titleAr,
-      categorySlug,
-      whatsappNumber,
-      descriptionAr: descriptionAr ?? null,
-      price: price ? String(price) : null,
-      priceUnit: priceUnit ?? null,
-      location: location ?? null,
-      sellerName: sellerName ?? null,
-      imageUrl: imageUrl ?? null,
-      categoryNameAr,
-      status: "pending",
-      featured: false,
-    }).returning();
-
-    // Update listing count
-    await db.execute(sql`UPDATE categories SET listing_count = listing_count + 1 WHERE slug = ${categorySlug}`);
-
-    res.status(201).json({ ...listing, price: listing.price ? Number(listing.price) : null, createdAt: listing.createdAt.toISOString() });
-  } catch (err) {
-    req.log.error({ err }, "Failed to create listing");
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 router.get("/listings/featured", async (req, res) => {
   try {
-    const featured = await db
-      .select()
-      .from(listingsTable)
-      .where(eq(listingsTable.status, "approved"))
-      .orderBy(desc(listingsTable.createdAt))
+    const supabase = getServerSupabase();
+    const { data, error } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
       .limit(8);
-    res.json(featured.map(l => ({ ...l, price: l.price ? Number(l.price) : null, createdAt: l.createdAt.toISOString() })));
+
+    if (error) throw error;
+    res.json((data as SupabaseListing[]).map(mapListing));
   } catch (err) {
     req.log.error({ err }, "Failed to get featured listings");
     res.status(500).json({ error: "Internal server error" });
@@ -105,12 +62,57 @@ router.get("/listings/:id", async (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-    const [listing] = await db.select().from(listingsTable).where(eq(listingsTable.id, id)).limit(1);
-    if (!listing) return res.status(404).json({ error: "Not found" });
+    const supabase = getServerSupabase();
+    const { data, error } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    res.json({ ...listing, price: listing.price ? Number(listing.price) : null, createdAt: listing.createdAt.toISOString() });
+    if (error || !data) return res.status(404).json({ error: "Not found" });
+    res.json(mapListing(data as SupabaseListing));
   } catch (err) {
     req.log.error({ err }, "Failed to get listing");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/listings", async (req, res) => {
+  try {
+    const { titleAr, categorySlug, whatsappNumber, descriptionAr, price, priceUnit, location, sellerName, imageUrl } = req.body;
+    if (!titleAr || !categorySlug || !whatsappNumber) {
+      return res.status(400).json({ error: "titleAr, categorySlug, and whatsappNumber are required" });
+    }
+
+    const supabase = getServerSupabase();
+    const { data: cat } = await supabase.from("categories").select("name_ar").eq("slug", categorySlug).single();
+
+    const { data, error } = await supabase
+      .from("listings")
+      .insert({
+        title_ar: titleAr,
+        category_slug: categorySlug,
+        category_name_ar: cat?.name_ar ?? null,
+        whatsapp_number: whatsappNumber,
+        description_ar: descriptionAr ?? null,
+        price: price ? Number(price) : null,
+        price_unit: priceUnit ?? null,
+        location: location ?? null,
+        seller_name: sellerName ?? null,
+        image_url: imageUrl ?? null,
+        status: "pending",
+        featured: false,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await supabase.rpc("increment_listing_count", { category_slug_param: categorySlug }).catch(() => {});
+
+    res.status(201).json(mapListing(data as SupabaseListing));
+  } catch (err) {
+    req.log.error({ err }, "Failed to create listing");
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -121,22 +123,28 @@ router.patch("/listings/:id", async (req, res) => {
     if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
     const { titleAr, descriptionAr, price, priceUnit, location, whatsappNumber, sellerName, imageUrl, status, featured } = req.body;
-    const updateData: Record<string, unknown> = {};
-    if (titleAr !== undefined) updateData.titleAr = titleAr;
-    if (descriptionAr !== undefined) updateData.descriptionAr = descriptionAr;
-    if (price !== undefined) updateData.price = price ? String(price) : null;
-    if (priceUnit !== undefined) updateData.priceUnit = priceUnit;
-    if (location !== undefined) updateData.location = location;
-    if (whatsappNumber !== undefined) updateData.whatsappNumber = whatsappNumber;
-    if (sellerName !== undefined) updateData.sellerName = sellerName;
-    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
-    if (status !== undefined) updateData.status = status;
-    if (featured !== undefined) updateData.featured = featured;
+    const update: Record<string, unknown> = {};
+    if (titleAr !== undefined) update.title_ar = titleAr;
+    if (descriptionAr !== undefined) update.description_ar = descriptionAr;
+    if (price !== undefined) update.price = price ? Number(price) : null;
+    if (priceUnit !== undefined) update.price_unit = priceUnit;
+    if (location !== undefined) update.location = location;
+    if (whatsappNumber !== undefined) update.whatsapp_number = whatsappNumber;
+    if (sellerName !== undefined) update.seller_name = sellerName;
+    if (imageUrl !== undefined) update.image_url = imageUrl;
+    if (status !== undefined) update.status = status;
+    if (featured !== undefined) update.featured = featured;
 
-    const [updated] = await db.update(listingsTable).set(updateData).where(eq(listingsTable.id, id)).returning();
-    if (!updated) return res.status(404).json({ error: "Not found" });
+    const supabase = getServerSupabase();
+    const { data, error } = await supabase
+      .from("listings")
+      .update(update)
+      .eq("id", id)
+      .select()
+      .single();
 
-    res.json({ ...updated, price: updated.price ? Number(updated.price) : null, createdAt: updated.createdAt.toISOString() });
+    if (error || !data) return res.status(404).json({ error: "Not found" });
+    res.json(mapListing(data as SupabaseListing));
   } catch (err) {
     req.log.error({ err }, "Failed to update listing");
     res.status(500).json({ error: "Internal server error" });
@@ -148,7 +156,9 @@ router.delete("/listings/:id", async (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-    await db.delete(listingsTable).where(eq(listingsTable.id, id));
+    const supabase = getServerSupabase();
+    const { error } = await supabase.from("listings").delete().eq("id", id);
+    if (error) throw error;
     res.status(204).send();
   } catch (err) {
     req.log.error({ err }, "Failed to delete listing");

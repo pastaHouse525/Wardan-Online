@@ -1,22 +1,18 @@
 import { Router } from "express";
-import { db } from "@workspace/db";
-import { appointmentsTable } from "@workspace/db";
-import { desc } from "drizzle-orm";
+import { getServerSupabase, mapAppointment, type SupabaseAppointment } from "../lib/supabase";
 
 const router = Router();
 
 router.get("/appointments", async (req, res) => {
   try {
-    const appointments = await db
-      .select()
-      .from(appointmentsTable)
-      .orderBy(desc(appointmentsTable.createdAt));
+    const supabase = getServerSupabase();
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    res.json(appointments.map(a => ({
-      ...a,
-      consultationFee: a.consultationFee ? Number(a.consultationFee) : null,
-      createdAt: a.createdAt.toISOString(),
-    })));
+    if (error) throw error;
+    res.json((data as SupabaseAppointment[]).map(mapAppointment));
   } catch (err) {
     req.log.error({ err }, "Failed to list appointments");
     res.status(500).json({ error: "Internal server error" });
@@ -30,23 +26,25 @@ router.post("/appointments", async (req, res) => {
       return res.status(400).json({ error: "doctorNameAr and whatsappNumber are required" });
     }
 
-    const [appointment] = await db.insert(appointmentsTable).values({
-      doctorNameAr,
-      whatsappNumber,
-      specialty: specialty ?? null,
-      clinicLocation: clinicLocation ?? null,
-      consultationFee: consultationFee ? String(consultationFee) : null,
-      patientName: patientName ?? null,
-      appointmentDate: appointmentDate ?? null,
-      notes: notes ?? null,
-      status: "available",
-    }).returning();
+    const supabase = getServerSupabase();
+    const { data, error } = await supabase
+      .from("appointments")
+      .insert({
+        doctor_name_ar: doctorNameAr,
+        whatsapp_number: whatsappNumber,
+        specialty: specialty ?? null,
+        clinic_location: clinicLocation ?? null,
+        consultation_fee: consultationFee ? Number(consultationFee) : null,
+        patient_name: patientName ?? null,
+        appointment_date: appointmentDate ?? null,
+        notes: notes ?? null,
+        status: "available",
+      })
+      .select()
+      .single();
 
-    res.status(201).json({
-      ...appointment,
-      consultationFee: appointment.consultationFee ? Number(appointment.consultationFee) : null,
-      createdAt: appointment.createdAt.toISOString(),
-    });
+    if (error) throw error;
+    res.status(201).json(mapAppointment(data as SupabaseAppointment));
   } catch (err) {
     req.log.error({ err }, "Failed to create appointment");
     res.status(500).json({ error: "Internal server error" });
