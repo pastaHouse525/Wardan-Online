@@ -71,9 +71,6 @@ export default function ListingCard({ listing, showStatus = false }: ListingCard
   const grad = categoryGradients[listing.categorySlug] ?? "from-primary/20 to-primary/5";
   const emoji = categoryEmojis[listing.categorySlug] ?? "📋";
   const imageCount = listing.imageUrls?.length ?? (listing.imageUrl ? 1 : 0);
-  const displayLocation = listing.city
-    ? (listing.location ? `${listing.city} - ${listing.location}` : listing.city)
-    : listing.location;
   const status = statusConfig[listing.status];
 
   return (
@@ -138,12 +135,20 @@ export default function ListingCard({ listing, showStatus = false }: ListingCard
         {/* Title */}
         <Link href={`/listing/${listing.id}`}>
           <h3
-            className="font-bold text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug mb-2 cursor-pointer text-base"
+            className="font-bold text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug mb-1.5 cursor-pointer text-base"
             data-testid={`text-listing-title-${listing.id}`}
           >
             {listing.titleAr}
           </h3>
         </Link>
+
+        {/* Governorate */}
+        {listing.city && (
+          <div className="flex items-center gap-1 text-muted-foreground text-sm mb-2" data-testid={`text-governorate-${listing.id}`}>
+            <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-[#E85530]" />
+            <span className="line-clamp-1">{listing.city}</span>
+          </div>
+        )}
 
         {/* Description */}
         {listing.descriptionAr && (
@@ -154,10 +159,10 @@ export default function ListingCard({ listing, showStatus = false }: ListingCard
 
         {/* Meta */}
         <div className="flex flex-col gap-1.5 mt-auto mb-3">
-          {displayLocation && (
+          {listing.location && (
             <div className="flex items-center gap-1.5 text-muted-foreground text-sm" data-testid={`text-location-${listing.id}`}>
               <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-[#E85530]" />
-              <span className="line-clamp-1">{displayLocation}</span>
+              <span className="line-clamp-1">{listing.location}</span>
             </div>
           )}
           <div className="flex items-center justify-between text-xs text-muted-foreground/70">

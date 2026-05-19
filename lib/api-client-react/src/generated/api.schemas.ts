@@ -40,6 +40,8 @@ export interface Listing {
   /** @nullable */
   priceUnit?: string | null;
   /** @nullable */
+  city?: string | null;
+  /** @nullable */
   location?: string | null;
   whatsappNumber: string;
   /** @nullable */

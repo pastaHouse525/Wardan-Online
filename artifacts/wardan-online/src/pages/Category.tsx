@@ -310,7 +310,7 @@ export default function Category() {
                   descriptionAr: listing.descriptionAr ?? null,
                   categoryNameAr: listing.categoryNameAr ?? null,
                   priceUnit: listing.priceUnit ?? null,
-                  city: (listing as { city?: string | null }).city ?? null,
+                  city: listing.city ?? null,
                   location: listing.location ?? null,
                   phoneNumber: (listing as { phoneNumber?: string | null }).phoneNumber ?? null,
                   sellerName: listing.sellerName ?? null,

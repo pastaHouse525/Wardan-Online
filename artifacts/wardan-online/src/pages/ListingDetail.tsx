@@ -103,10 +103,14 @@ export default function ListingDetail() {
             </div>
           )}
 
-          {listing.location && (
+          {(listing.city || listing.location) && (
             <div className="flex items-center gap-2 text-muted-foreground" data-testid="text-listing-location">
               <MapPin className="h-5 w-5 text-primary flex-shrink-0" />
-              <span>{listing.location}</span>
+              <span>
+                {listing.city && listing.location
+                  ? `${listing.city} - ${listing.location}`
+                  : listing.city ?? listing.location}
+              </span>
             </div>
           )}
 

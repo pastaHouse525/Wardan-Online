@@ -355,6 +355,8 @@ components:
           type: ["number", "null"]
         priceUnit:
           type: ["string", "null"]
+        city:
+          type: ["string", "null"]
         location:
           type: ["string", "null"]
         whatsappNumber:
