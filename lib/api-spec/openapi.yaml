@@ -3,13 +3,24 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Wardan Online Arabic Marketplace API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: listings
+    description: Marketplace listings
+  - name: categories
+    description: Marketplace categories
+  - name: appointments
+    description: Doctor appointments
+  - name: admin
+    description: Admin operations
+  - name: search
+    description: Search operations
+
 paths:
   /healthz:
     get:
@@ -24,6 +35,273 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List all categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+  /listings:
+    get:
+      operationId: listListings
+      tags: [listings]
+      summary: List listings with optional filters
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paginated list of listings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingsPage"
+    post:
+      operationId: createListing
+      tags: [listings]
+      summary: Create a new listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingInput"
+      responses:
+        "201":
+          description: Created listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+
+  /listings/{id}:
+    get:
+      operationId: getListing
+      tags: [listings]
+      summary: Get a single listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Listing detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateListing
+      tags: [listings]
+      summary: Update a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingUpdate"
+      responses:
+        "200":
+          description: Updated listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+    delete:
+      operationId: deleteListing
+      tags: [listings]
+      summary: Delete a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /listings/featured:
+    get:
+      operationId: listFeaturedListings
+      tags: [listings]
+      summary: Get featured/recent listings for home page
+      responses:
+        "200":
+          description: Featured listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+
+  /search:
+    get:
+      operationId: searchListings
+      tags: [search]
+      summary: Search listings
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+
+  /appointments:
+    get:
+      operationId: listAppointments
+      tags: [appointments]
+      summary: List doctor appointments/doctors
+      responses:
+        "200":
+          description: List of doctor listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Appointment"
+    post:
+      operationId: createAppointment
+      tags: [appointments]
+      summary: Book a doctor appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentInput"
+      responses:
+        "201":
+          description: Created appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get admin dashboard statistics
+      responses:
+        "200":
+          description: Admin statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
+  /admin/listings:
+    get:
+      operationId: adminListListings
+      tags: [admin]
+      summary: Admin - list all listings with management info
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: All listings for admin
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+
+  /admin/listings/{id}/approve:
+    patch:
+      operationId: approveListing
+      tags: [admin]
+      summary: Approve a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+
+  /admin/listings/{id}/reject:
+    patch:
+      operationId: rejectListing
+      tags: [admin]
+      summary: Reject a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rejected listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +312,197 @@ components:
       required:
         - status
 
+    Category:
+      type: object
+      required: [id, slug, nameAr, nameEn, icon, listingCount]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: string
+        icon:
+          type: string
+        listingCount:
+          type: integer
+
+    Listing:
+      type: object
+      required: [id, titleAr, categorySlug, price, whatsappNumber, status, createdAt]
+      properties:
+        id:
+          type: integer
+        titleAr:
+          type: string
+        descriptionAr:
+          type: ["string", "null"]
+        categorySlug:
+          type: string
+        categoryNameAr:
+          type: ["string", "null"]
+        price:
+          type: ["number", "null"]
+        priceUnit:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        whatsappNumber:
+          type: string
+        sellerName:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        featured:
+          type: boolean
+        createdAt:
+          type: string
+
+    ListingsPage:
+      type: object
+      required: [listings, total, page, limit]
+      properties:
+        listings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Listing"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    ListingInput:
+      type: object
+      required: [titleAr, categorySlug, whatsappNumber]
+      properties:
+        titleAr:
+          type: string
+          minLength: 1
+        descriptionAr:
+          type: string
+        categorySlug:
+          type: string
+        price:
+          type: number
+        priceUnit:
+          type: string
+        location:
+          type: string
+        whatsappNumber:
+          type: string
+        sellerName:
+          type: string
+        imageUrl:
+          type: string
+
+    ListingUpdate:
+      type: object
+      properties:
+        titleAr:
+          type: string
+        descriptionAr:
+          type: string
+        price:
+          type: number
+        priceUnit:
+          type: string
+        location:
+          type: string
+        whatsappNumber:
+          type: string
+        sellerName:
+          type: string
+        imageUrl:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        featured:
+          type: boolean
+
+    Appointment:
+      type: object
+      required: [id, doctorNameAr, specialty, whatsappNumber, status, createdAt]
+      properties:
+        id:
+          type: integer
+        doctorNameAr:
+          type: string
+        specialty:
+          type: ["string", "null"]
+        clinicLocation:
+          type: ["string", "null"]
+        whatsappNumber:
+          type: string
+        consultationFee:
+          type: ["number", "null"]
+        patientName:
+          type: ["string", "null"]
+        appointmentDate:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        status:
+          type: string
+        createdAt:
+          type: string
+
+    AppointmentInput:
+      type: object
+      required: [doctorNameAr, whatsappNumber]
+      properties:
+        doctorNameAr:
+          type: string
+        specialty:
+          type: string
+        clinicLocation:
+          type: string
+        whatsappNumber:
+          type: string
+        consultationFee:
+          type: number
+        patientName:
+          type: string
+        appointmentDate:
+          type: string
+        notes:
+          type: string
+
+    AdminStats:
+      type: object
+      required: [totalListings, pendingListings, approvedListings, rejectedListings, totalCategories, totalAppointments, listingsByCategory]
+      properties:
+        totalListings:
+          type: integer
+        pendingListings:
+          type: integer
+        approvedListings:
+          type: integer
+        rejectedListings:
+          type: integer
+        totalCategories:
+          type: integer
+        totalAppointments:
+          type: integer
+        listingsByCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryCount"
+
+    CategoryCount:
+      type: object
+      required: [categorySlug, categoryNameAr, count]
+      properties:
+        categorySlug:
+          type: string
+        categoryNameAr:
+          type: string
+        count:
+          type: integer

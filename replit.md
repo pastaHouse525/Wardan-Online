@@ -1,10 +1,11 @@
-# [Project name]
+# وردان أونلاين — Wardan Online
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Arabic-language marketplace website with RTL layout, covering 7 categories and a full admin dashboard.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
+- `pnpm --filter @workspace/wardan-online run dev` — run the frontend (port from env)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -14,6 +15,7 @@ _Replace the heading above with the project's name, and this line with one sente
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: React + Vite + Tailwind CSS, Cairo Arabic font, full RTL layout
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
@@ -22,23 +24,42 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — OpenAPI spec (source of truth)
+- `lib/db/src/schema/` — DB schema (categories, listings, appointments)
+- `artifacts/api-server/src/routes/` — Express route handlers
+- `artifacts/wardan-online/src/pages/` — Frontend pages
+- `artifacts/wardan-online/src/components/` — Shared UI components
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Full RTL layout set via `dir="rtl"` on `<html>` in main.tsx
+- Cairo Google Font for Arabic typography
+- Dark green primary palette (#166534-ish) with white backgrounds
+- WhatsApp contact links use `https://wa.me/<number>` format
+- Listings are created with `status: "pending"` and must be approved in the admin dashboard
+- Admin routes (`/admin/listings/:id/approve` and `/admin/listings/:id/reject`) use PATCH
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Home page with hero search and 7 category cards (real estate, livestock, birds, vegetables, clothes, home appliances, doctor appointments)
+- Category browsing with search/filter
+- Listing detail page with WhatsApp contact button
+- Add listing form (creates listings in pending status)
+- Doctor appointments section with direct WhatsApp booking
+- Search page across all listings
+- Admin dashboard with stats, listing approval/rejection, and category breakdown
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Arabic RTL layout throughout
+- Dark green and white color palette
+- WhatsApp contact button on every listing
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- After any OpenAPI spec change, always run `pnpm --filter @workspace/api-spec run codegen`
+- DB listing counts are updated via a SQL trigger on insert — manually run the UPDATE if counts drift
+- Admin dashboard has no authentication — add auth before production deployment
 
 ## Pointers
 
