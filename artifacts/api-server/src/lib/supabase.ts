@@ -19,10 +19,13 @@ export type SupabaseListing = {
   category_name_ar: string | null;
   price: number | null;
   price_unit: string | null;
+  city: string | null;
   location: string | null;
+  phone_number: string | null;
   whatsapp_number: string;
   seller_name: string | null;
   image_url: string | null;
+  image_urls: string | null; // JSON-encoded string[]
   status: string;
   featured: boolean;
   created_at: string;
@@ -49,7 +52,13 @@ export type SupabaseAppointment = {
   created_at: string;
 };
 
+function parseImageUrls(raw: string | null): string[] {
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return [raw]; }
+}
+
 export function mapListing(l: SupabaseListing) {
+  const urls = parseImageUrls(l.image_urls);
   return {
     id: l.id,
     titleAr: l.title_ar,
@@ -58,10 +67,13 @@ export function mapListing(l: SupabaseListing) {
     categoryNameAr: l.category_name_ar,
     price: l.price ? Number(l.price) : null,
     priceUnit: l.price_unit,
+    city: l.city,
     location: l.location,
+    phoneNumber: l.phone_number,
     whatsappNumber: l.whatsapp_number,
     sellerName: l.seller_name,
-    imageUrl: l.image_url,
+    imageUrl: urls[0] ?? l.image_url,
+    imageUrls: urls.length ? urls : (l.image_url ? [l.image_url] : []),
     status: l.status,
     featured: l.featured,
     createdAt: l.created_at,

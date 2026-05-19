@@ -79,13 +79,20 @@ router.get("/listings/:id", async (req, res) => {
 
 router.post("/listings", async (req, res) => {
   try {
-    const { titleAr, categorySlug, whatsappNumber, descriptionAr, price, priceUnit, location, sellerName, imageUrl } = req.body;
+    const {
+      titleAr, categorySlug, whatsappNumber, phoneNumber,
+      descriptionAr, price, priceUnit, location, city,
+      sellerName, imageUrl, imageUrls,
+    } = req.body;
     if (!titleAr || !categorySlug || !whatsappNumber) {
       return res.status(400).json({ error: "titleAr, categorySlug, and whatsappNumber are required" });
     }
 
     const supabase = getServerSupabase();
     const { data: cat } = await supabase.from("categories").select("name_ar").eq("slug", categorySlug).single();
+
+    const urlsArray: string[] = Array.isArray(imageUrls) ? imageUrls : imageUrl ? [imageUrl] : [];
+    const firstImage = urlsArray[0] ?? null;
 
     const { data, error } = await supabase
       .from("listings")
@@ -94,12 +101,15 @@ router.post("/listings", async (req, res) => {
         category_slug: categorySlug,
         category_name_ar: cat?.name_ar ?? null,
         whatsapp_number: whatsappNumber,
+        phone_number: phoneNumber ?? null,
         description_ar: descriptionAr ?? null,
         price: price ? Number(price) : null,
         price_unit: priceUnit ?? null,
+        city: city ?? null,
         location: location ?? null,
         seller_name: sellerName ?? null,
-        image_url: imageUrl ?? null,
+        image_url: firstImage,
+        image_urls: urlsArray.length ? JSON.stringify(urlsArray) : null,
         status: "pending",
         featured: false,
       })
