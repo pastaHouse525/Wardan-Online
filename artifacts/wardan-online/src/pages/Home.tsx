@@ -18,13 +18,13 @@ const categoryIcons: Record<string, React.ReactNode> = {
 };
 
 const categoryGradients: Record<string, string> = {
-  "real-estate": "from-blue-500 to-blue-700",
-  "livestock": "from-amber-500 to-amber-700",
-  "birds": "from-purple-500 to-purple-700",
-  "vegetables": "from-green-500 to-green-700",
-  "clothes": "from-pink-500 to-pink-700",
-  "home-appliances": "from-orange-500 to-orange-700",
-  "doctors": "from-red-500 to-red-700",
+  "real-estate":    "from-[#E85530] to-[#C94420]",
+  "livestock":      "from-[#F5A020] to-[#D98810]",
+  "birds":          "from-[#4A91C8] to-[#3578B0]",
+  "vegetables":     "from-[#3DAA82] to-[#2A8F6A]",
+  "clothes":        "from-[#E85580] to-[#C94068]",
+  "home-appliances":"from-[#4A91C8] to-[#2B6FAA]",
+  "doctors":        "from-[#3DAA82] to-[#2A8F6A]",
 };
 
 export default function Home() {

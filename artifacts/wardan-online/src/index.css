@@ -76,50 +76,59 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 143 20% 98%;
-  --foreground: 143 50% 10%;
-  
+  /* Logo palette:
+     Teal    #3DAA82 → hsl(155 46% 44%)
+     Orange  #F5A020 → hsl(38  91% 54%)
+     Red-org #E85530 → hsl(15  80% 55%)
+     Blue    #4A91C8 → hsl(210 53% 54%)
+     Navy    #1D2B50 → hsl(225 46% 21%)
+     Cream   #FAF8F5 → hsl(30  40% 97%)
+  */
+
+  --background: 30 40% 97%;
+  --foreground: 225 46% 14%;
+
   --card: 0 0% 100%;
-  --card-foreground: 143 50% 10%;
-  --card-border: 143 20% 90%;
+  --card-foreground: 225 46% 14%;
+  --card-border: 30 20% 89%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 143 50% 10%;
-  --popover-border: 143 20% 90%;
+  --popover-foreground: 225 46% 14%;
+  --popover-border: 30 20% 89%;
 
-  --primary: 143 64% 24%;
+  --primary: 155 46% 44%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 143 30% 90%;
-  --secondary-foreground: 143 64% 24%;
+  --secondary: 38 91% 54%;
+  --secondary-foreground: 0 0% 100%;
 
-  --muted: 143 20% 94%;
-  --muted-foreground: 143 10% 40%;
+  --muted: 30 20% 93%;
+  --muted-foreground: 225 15% 45%;
 
-  --accent: 143 40% 92%;
-  --accent-foreground: 143 64% 24%;
+  --accent: 38 80% 93%;
+  --accent-foreground: 38 80% 30%;
 
-  --destructive: 0 84% 60%;
+  --destructive: 15 80% 55%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 143 20% 88%;
-  --input: 143 20% 88%;
-  --ring: 143 64% 24%;
+  --border: 30 20% 87%;
+  --input: 30 20% 87%;
+  --ring: 155 46% 44%;
 
-  --chart-1: 143 64% 24%;
-  --chart-2: 143 40% 45%;
-  --chart-3: 143 30% 65%;
-  --chart-4: 143 20% 80%;
-  --chart-5: 143 10% 90%;
+  --chart-1: 155 46% 44%;
+  --chart-2: 38 91% 54%;
+  --chart-3: 15 80% 55%;
+  --chart-4: 210 53% 54%;
+  --chart-5: 225 46% 21%;
 
-  --sidebar: 143 10% 98%;
-  --sidebar-foreground: 143 50% 10%;
-  --sidebar-border: 143 20% 88%;
-  --sidebar-primary: 143 64% 24%;
+  --sidebar: 30 30% 97%;
+  --sidebar-foreground: 225 46% 14%;
+  --sidebar-border: 30 20% 87%;
+  --sidebar-primary: 155 46% 44%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 143 20% 92%;
-  --sidebar-accent-foreground: 143 50% 10%;
-  --sidebar-ring: 143 64% 24%;
+  --sidebar-accent: 30 20% 93%;
+  --sidebar-accent-foreground: 225 46% 14%;
+  --sidebar-ring: 155 46% 44%;
 
   --app-font-sans: 'Cairo', sans-serif;
   --app-font-serif: 'Cairo', serif;
