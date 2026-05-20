@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useSearch } from "wouter";
-import { Search, SlidersHorizontal, Plus, X, LayoutGrid, LayoutList, Map, MapPin } from "lucide-react";
+import { Search, SlidersHorizontal, Plus, X, LayoutGrid, LayoutList } from "lucide-react";
 import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useListListings, useListingCountsByCity } from "@workspace/api-client-react";
+import { useListListings } from "@workspace/api-client-react";
 import ListingCard from "@/components/ListingCard";
-import EgyptMap from "@/components/EgyptMap";
 import { EGYPT_GOVERNORATES } from "@/lib/governorates";
 
 const CATEGORIES: Record<string, { nameAr: string; emoji: string; gradient: string; description: string }> = {
@@ -65,8 +64,6 @@ export default function Category() {
   const [city, setCity]                 = useState(initialCity);
   const [filtersOpen, setFiltersOpen]   = useState(false);
   const [viewMode, setViewMode]         = useState<"grid" | "list">("grid");
-  const [showMap, setShowMap]           = useState(false);
-
   // Debounced live search
   useEffect(() => {
     const t = setTimeout(() => setSearchQuery(searchInput), 400);
@@ -81,11 +78,6 @@ export default function Category() {
   }, []);
 
   const hasFilters = searchQuery || sort !== "newest" || city !== "الكل";
-
-  const { data: cityCounts } = useListingCountsByCity();
-  const countsByCity = Object.fromEntries(
-    (cityCounts ?? []).map((c) => [c.city, c.count])
-  );
 
   const { data: result, isLoading } = useListListings(
     { category: slug, search: searchQuery || undefined, city: city !== "الكل" ? city : undefined, limit: 60 },
@@ -150,16 +142,6 @@ export default function Category() {
             >
               <SlidersHorizontal className={`h-4 w-4 ${filtersOpen ? "text-primary" : ""}`} />
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className={`h-11 w-11 shrink-0 ${showMap ? "bg-primary text-primary-foreground border-primary" : ""}`}
-              onClick={() => setShowMap(!showMap)}
-              title="عرض الخريطة"
-              data-testid="button-toggle-map"
-            >
-              <Map className="h-4 w-4" />
-            </Button>
             <div className="hidden sm:flex gap-1 border rounded-lg p-0.5">
               <button
                 onClick={() => setViewMode("grid")}
@@ -177,40 +159,6 @@ export default function Category() {
               </button>
             </div>
           </div>
-
-          {/* Map panel */}
-          {showMap && (
-            <div className="mb-3 p-3 bg-muted/40 rounded-xl border flex flex-col sm:flex-row gap-4 items-start">
-              <div className="w-full sm:w-56 shrink-0">
-                <EgyptMap
-                  selectedGovernorate={city !== "الكل" ? city : null}
-                  onSelectGovernorate={(gov) => setCity(gov ?? "الكل")}
-                  countsByCity={countsByCity}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground text-center mt-1">انقر على محافظة للتصفية</p>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground mb-2">تصفية حسب المحافظة</p>
-                {city !== "الكل" ? (
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary font-semibold text-sm px-3 py-1.5 rounded-full">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {city}
-                    </span>
-                    <button
-                      onClick={() => setCity("الكل")}
-                      className="text-xs text-muted-foreground hover:text-foreground underline"
-                    >
-                      إلغاء
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">لم يتم تحديد محافظة — اضغط على الخريطة للتصفية</p>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Expanded filters */}
           {filtersOpen && (
