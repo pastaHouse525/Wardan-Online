@@ -9,13 +9,13 @@ const router = Router();
 router.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    return res.status(400).json({ error: "email and password are required" });
+    res.status(400).json({ error: "email and password are required" }); return;
   }
   try {
     const supabase = getServerSupabase();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.session) {
-      return res.status(401).json({ error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
+      res.status(401).json({ error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" }); return;
     }
 
     // Verify caller is in admin_users
@@ -24,7 +24,7 @@ router.post("/auth/login", async (req, res) => {
       [(data.user.email ?? "").toLowerCase()]
     );
     if (!adminRecord) {
-      return res.status(403).json({ error: "هذا الحساب ليس لديه صلاحية الإدارة" });
+      res.status(403).json({ error: "هذا الحساب ليس لديه صلاحية الإدارة" }); return;
     }
 
     res.json({
@@ -55,7 +55,7 @@ router.post("/auth/logout", async (req, res) => {
 
 router.post("/auth/reset-password", async (req, res) => {
   const { email } = req.body as { email?: string };
-  if (!email) return res.status(400).json({ error: "email is required" });
+  if (!email) { res.status(400).json({ error: "email is required" }); return; }
 
   try {
     // Only allow reset for known admin emails
@@ -65,7 +65,7 @@ router.post("/auth/reset-password", async (req, res) => {
     );
     if (!adminRecord) {
       // Don't leak whether the email exists
-      return res.json({ success: true, link: null });
+      res.json({ success: true, link: null }); return;
     }
 
     const supabase = getServerSupabase();
@@ -76,7 +76,7 @@ router.post("/auth/reset-password", async (req, res) => {
 
     if (error) {
       req.log.error({ err: error }, "generateLink failed");
-      return res.status(400).json({ error: error.message });
+      res.status(400).json({ error: error.message }); return;
     }
 
     res.json({ success: true, link: data.properties?.action_link ?? null });
@@ -106,15 +106,15 @@ router.post("/admin/setup", async (req, res) => {
     const existing = await queryOne<{ count: string }>("SELECT COUNT(*) FROM admin_users");
     const count = parseInt(existing?.count ?? "0", 10);
     if (count > 0) {
-      return res.status(403).json({ error: "الإدارة مُهيأة بالفعل. استخدم خاصية دعوة مسؤول جديد." });
+      res.status(403).json({ error: "الإدارة مُهيأة بالفعل. استخدم خاصية دعوة مسؤول جديد." }); return;
     }
 
     const { email, password } = req.body as { email?: string; password?: string };
     if (!email || !password) {
-      return res.status(400).json({ error: "email and password are required" });
+      res.status(400).json({ error: "email and password are required" }); return;
     }
     if (password.length < 8) {
-      return res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
+      res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }); return;
     }
 
     const supabase = getServerSupabase();
@@ -125,7 +125,7 @@ router.post("/admin/setup", async (req, res) => {
     });
 
     if (authError && !authError.message.toLowerCase().includes("already registered")) {
-      return res.status(400).json({ error: authError.message });
+      res.status(400).json({ error: authError.message }); return;
     }
 
     await query(

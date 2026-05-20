@@ -38,7 +38,7 @@ router.post("/appointments", async (req, res) => {
       consultationFee, patientName, appointmentDate, notes,
     } = req.body;
     if (!doctorNameAr || !whatsappNumber) {
-      return res.status(400).json({ error: "doctorNameAr and whatsappNumber are required" });
+      res.status(400).json({ error: "doctorNameAr and whatsappNumber are required" }); return;
     }
 
     const row = await queryOne(

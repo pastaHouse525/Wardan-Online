@@ -7,14 +7,14 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
   if (!token) {
-    return res.status(401).json({ error: "Unauthorized: missing token" });
+    res.status(401).json({ error: "Unauthorized: missing token" }); return;
   }
 
   try {
     const supabase = getServerSupabase();
     const { data: { user }, error } = await supabase.auth.getUser(token);
     if (error || !user) {
-      return res.status(401).json({ error: "Unauthorized: invalid token" });
+      res.status(401).json({ error: "Unauthorized: invalid token" }); return;
     }
 
     // Check that this user's email is in the admin_users table (local DB)
@@ -24,11 +24,11 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
     );
 
     if (!adminRecord) {
-      return res.status(403).json({ error: "Forbidden: not an admin user" });
+      res.status(403).json({ error: "Forbidden: not an admin user" }); return;
     }
 
     next();
   } catch {
-    return res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Unauthorized" });
   }
 }

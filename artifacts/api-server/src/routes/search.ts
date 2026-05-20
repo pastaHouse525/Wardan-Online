@@ -42,7 +42,7 @@ router.get("/search", async (req, res) => {
     const offset = (pageNum - 1) * limitNum;
 
     if (!q.trim()) {
-      return res.json([]);
+      res.json([]); return;
     }
 
     const conditions = ["status = 'approved'", "(title_ar ILIKE $1 OR description_ar ILIKE $1 OR category_name_ar ILIKE $1)"];

@@ -110,12 +110,12 @@ router.get("/admin/listings", requireAdmin, async (req, res) => {
 // PATCH /admin/listings/:id/approve
 router.patch("/admin/listings/:id/approve", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    const id = parseInt(String(req.params["id"]), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
     const row = await queryOne(
       "UPDATE listings SET status = 'approved' WHERE id = $1 RETURNING *", [id]
     );
-    if (!row) return res.status(404).json({ error: "Not found" });
+    if (!row) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapListing(row));
   } catch (err) {
     req.log.error({ err }, "Failed to approve listing");
@@ -126,12 +126,12 @@ router.patch("/admin/listings/:id/approve", requireAdmin, async (req, res) => {
 // PATCH /admin/listings/:id/reject
 router.patch("/admin/listings/:id/reject", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    const id = parseInt(String(req.params["id"]), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
     const row = await queryOne(
       "UPDATE listings SET status = 'rejected' WHERE id = $1 RETURNING *", [id]
     );
-    if (!row) return res.status(404).json({ error: "Not found" });
+    if (!row) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapListing(row));
   } catch (err) {
     req.log.error({ err }, "Failed to reject listing");
@@ -142,13 +142,13 @@ router.patch("/admin/listings/:id/reject", requireAdmin, async (req, res) => {
 // PATCH /admin/listings/:id/feature
 router.patch("/admin/listings/:id/feature", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    const id = parseInt(String(req.params["id"]), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
     const { featured } = req.body as { featured: boolean };
     const row = await queryOne(
       "UPDATE listings SET featured = $1 WHERE id = $2 RETURNING *", [!!featured, id]
     );
-    if (!row) return res.status(404).json({ error: "Not found" });
+    if (!row) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapListing(row));
   } catch (err) {
     req.log.error({ err }, "Failed to feature listing");
@@ -159,8 +159,8 @@ router.patch("/admin/listings/:id/feature", requireAdmin, async (req, res) => {
 // DELETE /admin/listings/:id
 router.delete("/admin/listings/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    const id = parseInt(String(req.params["id"]), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
     await query("DELETE FROM listings WHERE id = $1", [id]);
     res.status(204).send();
   } catch (err) {
@@ -172,8 +172,8 @@ router.delete("/admin/listings/:id", requireAdmin, async (req, res) => {
 // DELETE /admin/appointments/:id
 router.delete("/admin/appointments/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    const id = parseInt(String(req.params["id"]), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
     await query("DELETE FROM appointments WHERE id = $1", [id]);
     res.status(204).send();
   } catch (err) {
@@ -199,7 +199,7 @@ router.get("/admin/users", requireAdmin, async (req, res) => {
 router.post("/admin/users", requireAdmin, async (req, res) => {
   try {
     const { email, role = "admin" } = req.body as { email: string; role?: string };
-    if (!email) return res.status(400).json({ error: "email is required" });
+    if (!email) { res.status(400).json({ error: "email is required" }); return; }
     const row = await queryOne(
       "INSERT INTO admin_users (email, role) VALUES ($1, $2) RETURNING *",
       [email.toLowerCase().trim(), role]
@@ -214,13 +214,13 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
 
 router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    const id = parseInt(String(req.params["id"]), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
     // Prevent deleting the last admin
     const countRow = await queryOne<{ count: string }>("SELECT COUNT(*) FROM admin_users");
     if (parseInt(countRow?.count ?? "0", 10) <= 1) {
-      return res.status(400).json({ error: "لا يمكن حذف المسؤول الأخير" });
+      res.status(400).json({ error: "لا يمكن حذف المسؤول الأخير" }); return;
     }
 
     await query("DELETE FROM admin_users WHERE id = $1", [id]);
@@ -236,10 +236,10 @@ router.post("/admin/users/invite", requireAdmin, async (req, res) => {
   try {
     const { email, password } = req.body as { email?: string; password?: string };
     if (!email || !password) {
-      return res.status(400).json({ error: "email and password are required" });
+      res.status(400).json({ error: "email and password are required" }); return;
     }
     if (password.length < 8) {
-      return res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
+      res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }); return;
     }
 
     const { getServerSupabase } = await import("../lib/supabase");
@@ -252,7 +252,7 @@ router.post("/admin/users/invite", requireAdmin, async (req, res) => {
     });
 
     if (authError && !authError.message.toLowerCase().includes("already registered")) {
-      return res.status(400).json({ error: authError.message });
+      res.status(400).json({ error: authError.message }); return;
     }
 
     const row = await queryOne(
@@ -261,7 +261,7 @@ router.post("/admin/users/invite", requireAdmin, async (req, res) => {
     );
 
     if (!row) {
-      return res.status(409).json({ error: "هذا البريد الإلكتروني مسؤول بالفعل" });
+      res.status(409).json({ error: "هذا البريد الإلكتروني مسؤول بالفعل" }); return;
     }
 
     res.status(201).json({ success: true, user: row, supabaseId: authData?.user?.id ?? null });
@@ -277,7 +277,7 @@ router.patch("/admin/users/change-password", requireAdmin, async (req, res) => {
     const token = req.headers["authorization"]?.slice(7) ?? "";
     const { newPassword } = req.body as { newPassword?: string };
     if (!newPassword || newPassword.length < 8) {
-      return res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
+      res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }); return;
     }
 
     const { getServerSupabase } = await import("../lib/supabase");
@@ -286,11 +286,11 @@ router.patch("/admin/users/change-password", requireAdmin, async (req, res) => {
     // Identify the caller
     const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
     if (authErr || !user) {
-      return res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: "Unauthorized" }); return;
     }
 
     const { error } = await supabase.auth.admin.updateUserById(user.id, { password: newPassword });
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) { res.status(400).json({ error: error.message }); return; }
 
     res.json({ success: true });
   } catch (err) {

@@ -37,7 +37,7 @@ const schema = z.object({
   city: z.string().min(1, "اختر المحافظة"),
   location: z.string().optional(),
   sellerName: z.string().optional(),
-  phoneNumber: z.string().optional(),
+  phoneNumber: z.string().min(7, "رقم الهاتف غير صحيح — يجب أن يكون 7 أرقام على الأقل"),
   whatsappNumber: z.string().min(7, "رقم واتساب غير صحيح"),
   disclaimerAccepted: z.literal(true, {
     errorMap: () => ({ message: "يجب قبول إقرار المسؤولية للمتابعة" }),
@@ -516,15 +516,15 @@ export default function AddListing() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField control={form.control} name="phoneNumber" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
+                    <FormLabel className="text-base font-semibold">
                       <span className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" /> رقم الهاتف
+                        <Phone className="h-4 w-4" /> رقم الهاتف <span className="text-destructive">*</span>
                       </span>
                     </FormLabel>
                     <FormControl>
                       <Input
                         type="tel"
-                        placeholder="7XXXXXXXX"
+                        placeholder="01XXXXXXXXX"
                         dir="ltr"
                         className="h-12 text-left"
                         {...field}

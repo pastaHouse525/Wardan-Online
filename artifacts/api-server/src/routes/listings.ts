@@ -153,16 +153,44 @@ router.get("/listings/featured", async (req, res) => {
 router.get("/listings/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
     const row = await queryOne("SELECT * FROM listings WHERE id = $1", [id]);
-    if (!row) return res.status(404).json({ error: "Not found" });
+    if (!row) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapListing(row));
   } catch (err) {
     req.log.error({ err }, "Failed to get listing");
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// ── Anti-spam helpers ────────────────────────────────────────────────────────
+
+/** Normalise a phone string: strip spaces, dashes, leading + */
+function normalisePhone(p: string): string {
+  return p.replace(/[\s\-().+]/g, "").trim();
+}
+
+/** Strip diacritics + collapse whitespace for duplicate-title comparison */
+function normaliseTitle(t: string): string {
+  return t
+    .replace(/[\u064B-\u065F\u0670]/g, "") // strip Arabic diacritics
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/** Extract best-effort client IP from request */
+function clientIp(req: import("express").Request): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) {
+    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(",")[0];
+    return first.trim();
+  }
+  return req.ip ?? req.socket?.remoteAddress ?? "unknown";
+}
+
+const RATE_LIMIT_PER_DAY = 3;
 
 // POST /listings — create new listing (pending)
 router.post("/listings", async (req, res) => {
@@ -173,21 +201,87 @@ router.post("/listings", async (req, res) => {
       sellerName, imageUrl, imageUrls, disclaimerAcceptedAt,
     } = req.body;
 
+    // ── 1. Required field validation ─────────────────────────────────────────
     if (!titleAr || !categorySlug || !whatsappNumber) {
-      return res.status(400).json({ error: "titleAr, categorySlug, and whatsappNumber are required" });
+      res.status(400).json({ error: "titleAr, categorySlug, and whatsappNumber are required" }); return;
+    }
+    if (!phoneNumber || String(phoneNumber).trim().length < 7) {
+      res.status(400).json({ error: "رقم الهاتف مطلوب للتحقق من هوية البائع" }); return;
     }
     if (!city || !EGYPT_GOVERNORATES.has(city)) {
-      return res.status(400).json({ error: "يجب اختيار محافظة صحيحة من القائمة" });
+      res.status(400).json({ error: "يجب اختيار محافظة صحيحة من القائمة" }); return;
     }
     if (!disclaimerAcceptedAt) {
-      return res.status(400).json({ error: "يجب الموافقة على إقرار المسؤولية قبل النشر" });
+      res.status(400).json({ error: "يجب الموافقة على إقرار المسؤولية قبل النشر" }); return;
     }
-
     const acceptedAt = new Date(disclaimerAcceptedAt as string);
     if (isNaN(acceptedAt.getTime())) {
-      return res.status(400).json({ error: "تاريخ قبول الإقرار غير صحيح" });
+      res.status(400).json({ error: "تاريخ قبول الإقرار غير صحيح" }); return;
     }
 
+    const normPhone = normalisePhone(String(phoneNumber));
+    const normTitle = normaliseTitle(String(titleAr));
+    const ip        = clientIp(req);
+
+    // ── 2. Daily rate limit: max 3 listings per phone per calendar day ────────
+    const todayCount = await queryCount(
+      `SELECT COUNT(*) FROM listings
+       WHERE phone_number = $1
+         AND created_at >= NOW() - INTERVAL '24 hours'`,
+      [normPhone]
+    );
+    if (todayCount >= RATE_LIMIT_PER_DAY) {
+      res.status(429).json({
+        error: `لقد تجاوزت الحد الأقصى المسموح به (${RATE_LIMIT_PER_DAY} إعلانات يومياً). حاول غداً.`,
+      }); return;
+    }
+
+    // ── 3. Duplicate detection: same title + category from same phone (48 h) ─
+    const duplicate = await queryOne(
+      `SELECT id FROM listings
+       WHERE phone_number = $1
+         AND category_slug = $2
+         AND LOWER(REGEXP_REPLACE(title_ar, '[\\u064B-\\u065F\\u0670\\s]+', '', 'g')) =
+             LOWER(REGEXP_REPLACE($3,       '[\\u064B-\\u065F\\u0670\\s]+', '', 'g'))
+         AND created_at >= NOW() - INTERVAL '48 hours'
+       LIMIT 1`,
+      [normPhone, categorySlug, normTitle]
+    );
+    if (duplicate) {
+      res.status(409).json({
+        error: "يوجد إعلان مشابه لهذا الإعلان تم نشره مؤخراً. يُرجى الانتظار 48 ساعة قبل إعادة النشر.",
+      }); return;
+    }
+
+    // ── 4. IP-based spam burst: max 10 pending listings per IP per hour ───────
+    const ipCount = await queryCount(
+      `SELECT COUNT(*) FROM listings
+       WHERE ip_address = $1
+         AND status = 'pending'
+         AND created_at >= NOW() - INTERVAL '1 hour'`,
+      [ip]
+    );
+    if (ipCount >= 10) {
+      res.status(429).json({
+        error: "تم اكتشاف نشاط غير عادي. يُرجى المحاولة لاحقاً.",
+      }); return;
+    }
+
+    // ── 5. Repeated spam content: same title posted by anyone ≥ 5 times today ─
+    const spamCount = await queryCount(
+      `SELECT COUNT(*) FROM listings
+       WHERE LOWER(REGEXP_REPLACE(title_ar, '[\\u064B-\\u065F\\u0670\\s]+', '', 'g')) =
+             LOWER(REGEXP_REPLACE($1,       '[\\u064B-\\u065F\\u0670\\s]+', '', 'g'))
+         AND created_at >= NOW() - INTERVAL '24 hours'`,
+      [normTitle]
+    );
+    if (spamCount >= 5) {
+      res.status(409).json({
+        error: "هذا المحتوى تم الإبلاغ عنه كمحتوى مكرر. يُرجى تغيير عنوان الإعلان.",
+      }); return;
+    }
+
+    // ── 6. Insert ─────────────────────────────────────────────────────────────
     const cat = await queryOne<{ name_ar: string }>(
       "SELECT name_ar FROM categories WHERE slug = $1", [categorySlug]
     );
@@ -199,12 +293,12 @@ router.post("/listings", async (req, res) => {
       `INSERT INTO listings
         (title_ar, category_slug, category_name_ar, whatsapp_number, phone_number,
          description_ar, price, price_unit, city, location, seller_name,
-         image_url, image_urls, status, featured, disclaimer_accepted_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',false,$14)
+         image_url, image_urls, status, featured, disclaimer_accepted_at, ip_address)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',false,$14,$15)
        RETURNING *`,
       [
         titleAr, categorySlug, cat?.name_ar ?? null,
-        whatsappNumber, phoneNumber ?? null,
+        whatsappNumber, normPhone,
         descriptionAr ?? null,
         price ? Number(price) : null,
         priceUnit ?? null,
@@ -214,6 +308,7 @@ router.post("/listings", async (req, res) => {
         firstImage,
         urlsArray.length ? JSON.stringify(urlsArray) : null,
         acceptedAt,
+        ip,
       ]
     );
     if (!row) throw new Error("Insert returned no row");
@@ -235,7 +330,7 @@ router.post("/listings", async (req, res) => {
 router.patch("/listings/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
     const {
       titleAr, descriptionAr, price, priceUnit, location, city,
@@ -263,7 +358,7 @@ router.patch("/listings/:id", async (req, res) => {
     if (status !== undefined) set("status", status);
     if (featured !== undefined) set("featured", !!featured);
 
-    if (!sets.length) return res.status(400).json({ error: "Nothing to update" });
+    if (!sets.length) { res.status(400).json({ error: "Nothing to update" }); return; }
 
     params.push(id);
     const row = await queryOne(
@@ -271,7 +366,7 @@ router.patch("/listings/:id", async (req, res) => {
       params
     );
 
-    if (!row) return res.status(404).json({ error: "Not found" });
+    if (!row) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapListing(row));
   } catch (err) {
     req.log.error({ err }, "Failed to update listing");
@@ -283,7 +378,7 @@ router.patch("/listings/:id", async (req, res) => {
 router.delete("/listings/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
     await query("DELETE FROM listings WHERE id = $1", [id]);
     res.status(204).send();
   } catch (err) {
