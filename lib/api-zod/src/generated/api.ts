@@ -20,13 +20,18 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary List all categories
  */
+export const ListCategoriesQueryParams = zod.object({
+  "section": zod.enum(['marketplace', 'services']).optional().describe('Filter by section (marketplace or services)')
+})
+
 export const ListCategoriesResponseItem = zod.object({
   "id": zod.number(),
   "slug": zod.string(),
   "nameAr": zod.string(),
   "nameEn": zod.string(),
   "icon": zod.string(),
-  "listingCount": zod.number()
+  "listingCount": zod.number(),
+  "section": zod.enum(['marketplace', 'services'])
 })
 export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem)
 
@@ -36,6 +41,7 @@ export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem)
  */
 export const ListListingsQueryParams = zod.object({
   "category": zod.coerce.string().optional(),
+  "section": zod.enum(['marketplace', 'services']).optional(),
   "search": zod.coerce.string().optional(),
   "city": zod.coerce.string().optional(),
   "priceMin": zod.coerce.number().optional(),
@@ -52,6 +58,7 @@ export const ListListingsResponse = zod.object({
   "descriptionAr": zod.string().nullish(),
   "categorySlug": zod.string(),
   "categoryNameAr": zod.string().nullish(),
+  "categorySection": zod.string().nullish(),
   "price": zod.number().nullable(),
   "priceUnit": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -59,6 +66,7 @@ export const ListListingsResponse = zod.object({
   "whatsappNumber": zod.string(),
   "sellerName": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "featured": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -82,9 +90,12 @@ export const CreateListingBody = zod.object({
   "price": zod.number().optional(),
   "priceUnit": zod.string().optional(),
   "location": zod.string().optional(),
+  "city": zod.string().optional(),
   "whatsappNumber": zod.string(),
+  "phoneNumber": zod.string().optional(),
   "sellerName": zod.string().optional(),
   "imageUrl": zod.string().optional(),
+  "workingHours": zod.string().optional(),
   "disclaimerAcceptedAt": zod.coerce.date().describe('ISO timestamp of when the user accepted the legal disclaimer')
 })
 
@@ -102,6 +113,7 @@ export const GetListingResponse = zod.object({
   "descriptionAr": zod.string().nullish(),
   "categorySlug": zod.string(),
   "categoryNameAr": zod.string().nullish(),
+  "categorySection": zod.string().nullish(),
   "price": zod.number().nullable(),
   "priceUnit": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -109,6 +121,7 @@ export const GetListingResponse = zod.object({
   "whatsappNumber": zod.string(),
   "sellerName": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "featured": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -131,6 +144,7 @@ export const UpdateListingBody = zod.object({
   "whatsappNumber": zod.string().optional(),
   "sellerName": zod.string().optional(),
   "imageUrl": zod.string().optional(),
+  "workingHours": zod.string().optional(),
   "status": zod.enum(['pending', 'approved', 'rejected']).optional(),
   "featured": zod.boolean().optional()
 })
@@ -141,6 +155,7 @@ export const UpdateListingResponse = zod.object({
   "descriptionAr": zod.string().nullish(),
   "categorySlug": zod.string(),
   "categoryNameAr": zod.string().nullish(),
+  "categorySection": zod.string().nullish(),
   "price": zod.number().nullable(),
   "priceUnit": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -148,6 +163,7 @@ export const UpdateListingResponse = zod.object({
   "whatsappNumber": zod.string(),
   "sellerName": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "featured": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -171,6 +187,7 @@ export const ListFeaturedListingsResponseItem = zod.object({
   "descriptionAr": zod.string().nullish(),
   "categorySlug": zod.string(),
   "categoryNameAr": zod.string().nullish(),
+  "categorySection": zod.string().nullish(),
   "price": zod.number().nullable(),
   "priceUnit": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -178,6 +195,7 @@ export const ListFeaturedListingsResponseItem = zod.object({
   "whatsappNumber": zod.string(),
   "sellerName": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "featured": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -210,6 +228,7 @@ export const SearchListingsResponseItem = zod.object({
   "descriptionAr": zod.string().nullish(),
   "categorySlug": zod.string(),
   "categoryNameAr": zod.string().nullish(),
+  "categorySection": zod.string().nullish(),
   "price": zod.number().nullable(),
   "priceUnit": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -217,6 +236,7 @@ export const SearchListingsResponseItem = zod.object({
   "whatsappNumber": zod.string(),
   "sellerName": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "featured": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -290,6 +310,7 @@ export const AdminListListingsResponseItem = zod.object({
   "descriptionAr": zod.string().nullish(),
   "categorySlug": zod.string(),
   "categoryNameAr": zod.string().nullish(),
+  "categorySection": zod.string().nullish(),
   "price": zod.number().nullable(),
   "priceUnit": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -297,6 +318,7 @@ export const AdminListListingsResponseItem = zod.object({
   "whatsappNumber": zod.string(),
   "sellerName": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "featured": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -317,6 +339,7 @@ export const ApproveListingResponse = zod.object({
   "descriptionAr": zod.string().nullish(),
   "categorySlug": zod.string(),
   "categoryNameAr": zod.string().nullish(),
+  "categorySection": zod.string().nullish(),
   "price": zod.number().nullable(),
   "priceUnit": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -324,6 +347,7 @@ export const ApproveListingResponse = zod.object({
   "whatsappNumber": zod.string(),
   "sellerName": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "featured": zod.boolean().optional(),
   "createdAt": zod.string()
@@ -343,6 +367,7 @@ export const RejectListingResponse = zod.object({
   "descriptionAr": zod.string().nullish(),
   "categorySlug": zod.string(),
   "categoryNameAr": zod.string().nullish(),
+  "categorySection": zod.string().nullish(),
   "price": zod.number().nullable(),
   "priceUnit": zod.string().nullish(),
   "city": zod.string().nullish(),
@@ -350,6 +375,7 @@ export const RejectListingResponse = zod.object({
   "whatsappNumber": zod.string(),
   "sellerName": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
   "featured": zod.boolean().optional(),
   "createdAt": zod.string()

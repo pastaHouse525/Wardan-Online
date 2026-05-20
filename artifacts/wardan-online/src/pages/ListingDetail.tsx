@@ -1,7 +1,7 @@
 import { useParams, Link } from "wouter";
 import {
   MapPin, DollarSign, MessageCircle, Phone, User, Calendar,
-  Tag, ArrowRight, Share2, Clock, Hash, ChevronLeft,
+  Tag, ArrowRight, Share2, Clock, Hash, ChevronLeft, Clock3, Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,8 @@ interface ListingExtra {
   imageUrls?: string[];
   city?: string;
   phoneNumber?: string;
+  workingHours?: string;
+  categorySection?: string;
 }
 
 function relativeTime(iso: string): string {
@@ -85,7 +87,9 @@ function ContactCard({ whatsappUrl, phoneNumber, sellerName, titleAr }: ContactC
         </div>
       )}
 
-      <p className="text-sm text-muted-foreground text-center">تواصل مع البائع مباشرةً</p>
+      <p className="text-sm text-muted-foreground text-center">
+        {sellerName ? `تواصل مع ${sellerName}` : "تواصل مباشرةً"}
+      </p>
 
       {/* WhatsApp */}
       <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" data-testid="button-whatsapp-contact" className="block">
@@ -155,6 +159,7 @@ export default function ListingDetail() {
   }
 
   const extra = listing as unknown as ListingExtra;
+  const isService = extra.categorySection === "services";
   const whatsappUrl = `https://wa.me/${listing.whatsappNumber.replace(/\D/g, "")}`;
   const callUrl = extra.phoneNumber ? `tel:+${extra.phoneNumber.replace(/\D/g, "")}` : null;
 
@@ -227,12 +232,23 @@ export default function ListingDetail() {
 
             {/* Meta pills row */}
             <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+              {isService && (
+                <span className="inline-flex items-center gap-1 bg-teal-50 text-teal-700 border border-teal-200 text-xs font-bold px-2.5 py-1 rounded-full">
+                  <Wrench className="h-3.5 w-3.5" /> دليل الخدمات
+                </span>
+              )}
               {(extra.city || listing.location) && (
                 <span className="flex items-center gap-1.5" data-testid="text-listing-location">
                   <MapPin className="h-4 w-4 text-primary shrink-0" />
                   {extra.city && listing.location
                     ? `${extra.city} — ${listing.location}`
                     : extra.city ?? listing.location}
+                </span>
+              )}
+              {extra.workingHours && (
+                <span className="flex items-center gap-1.5" data-testid="text-listing-hours">
+                  <Clock3 className="h-4 w-4 text-teal-600 shrink-0" />
+                  {extra.workingHours}
                 </span>
               )}
               {listing.sellerName && (
@@ -252,12 +268,23 @@ export default function ListingDetail() {
             </div>
           </div>
 
+          {/* Working hours block for services */}
+          {isService && extra.workingHours && (
+            <div className="bg-teal-50 border border-teal-200 rounded-2xl p-5">
+              <h2 className="font-bold text-base flex items-center gap-2 text-teal-800 mb-2">
+                <Clock3 className="h-4 w-4" />
+                ساعات العمل
+              </h2>
+              <p className="text-teal-700 font-medium">{extra.workingHours}</p>
+            </div>
+          )}
+
           {/* Description */}
           {listing.descriptionAr && (
             <div className="bg-card rounded-2xl p-5 border space-y-2">
               <h2 className="font-bold text-base flex items-center gap-2">
                 <Tag className="h-4 w-4 text-primary" />
-                تفاصيل الإعلان
+                {isService ? "تفاصيل الخدمة" : "تفاصيل الإعلان"}
               </h2>
               <p
                 className="text-muted-foreground leading-relaxed whitespace-pre-wrap text-sm sm:text-base"

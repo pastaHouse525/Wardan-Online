@@ -9,6 +9,14 @@ export interface HealthStatus {
   status: string;
 }
 
+export type CategorySection = typeof CategorySection[keyof typeof CategorySection];
+
+
+export const CategorySection = {
+  marketplace: 'marketplace',
+  services: 'services',
+} as const;
+
 export interface Category {
   id: number;
   slug: string;
@@ -16,6 +24,7 @@ export interface Category {
   nameEn: string;
   icon: string;
   listingCount: number;
+  section: CategorySection;
 }
 
 export type ListingStatus = typeof ListingStatus[keyof typeof ListingStatus];
@@ -36,6 +45,8 @@ export interface Listing {
   /** @nullable */
   categoryNameAr?: string | null;
   /** @nullable */
+  categorySection?: string | null;
+  /** @nullable */
   price: number | null;
   /** @nullable */
   priceUnit?: string | null;
@@ -48,6 +59,8 @@ export interface Listing {
   sellerName?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  /** @nullable */
+  workingHours?: string | null;
   status: ListingStatus;
   featured?: boolean;
   createdAt: string;
@@ -68,9 +81,12 @@ export interface ListingInput {
   price?: number;
   priceUnit?: string;
   location?: string;
+  city?: string;
   whatsappNumber: string;
+  phoneNumber?: string;
   sellerName?: string;
   imageUrl?: string;
+  workingHours?: string;
   /** ISO timestamp of when the user accepted the legal disclaimer */
   disclaimerAcceptedAt: string;
 }
@@ -93,6 +109,7 @@ export interface ListingUpdate {
   whatsappNumber?: string;
   sellerName?: string;
   imageUrl?: string;
+  workingHours?: string;
   status?: ListingUpdateStatus;
   featured?: boolean;
 }
@@ -149,8 +166,24 @@ export interface CityCount {
   count: number;
 }
 
+export type ListCategoriesParams = {
+/**
+ * Filter by section (marketplace or services)
+ */
+section?: ListCategoriesSection;
+};
+
+export type ListCategoriesSection = typeof ListCategoriesSection[keyof typeof ListCategoriesSection];
+
+
+export const ListCategoriesSection = {
+  marketplace: 'marketplace',
+  services: 'services',
+} as const;
+
 export type ListListingsParams = {
 category?: string;
+section?: ListListingsSection;
 search?: string;
 city?: string;
 priceMin?: number;
@@ -159,6 +192,14 @@ sortBy?: ListListingsSortBy;
 page?: number;
 limit?: number;
 };
+
+export type ListListingsSection = typeof ListListingsSection[keyof typeof ListListingsSection];
+
+
+export const ListListingsSection = {
+  marketplace: 'marketplace',
+  services: 'services',
+} as const;
 
 export type ListListingsSortBy = typeof ListListingsSortBy[keyof typeof ListListingsSortBy];
 

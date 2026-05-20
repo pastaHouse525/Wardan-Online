@@ -16,6 +16,8 @@ export interface Listing {
   /** @nullable */
   categoryNameAr?: string | null;
   /** @nullable */
+  categorySection?: string | null;
+  /** @nullable */
   price: number | null;
   /** @nullable */
   priceUnit?: string | null;
@@ -28,6 +30,8 @@ export interface Listing {
   sellerName?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  /** @nullable */
+  workingHours?: string | null;
   status: ListingStatus;
   featured?: boolean;
   createdAt: string;

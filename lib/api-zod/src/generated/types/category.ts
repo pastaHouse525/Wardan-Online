@@ -5,6 +5,7 @@
  * Wardan Online Arabic Marketplace API
  * OpenAPI spec version: 0.1.0
  */
+import type { CategorySection } from './categorySection';
 
 export interface Category {
   id: number;
@@ -13,4 +14,5 @@ export interface Category {
   nameEn: string;
   icon: string;
   listingCount: number;
+  section: CategorySection;
 }

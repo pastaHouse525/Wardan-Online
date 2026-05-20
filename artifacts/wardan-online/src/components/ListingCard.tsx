@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { MapPin, MessageCircle, Phone, Clock, Images } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Clock, Images, Clock3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatPriceUnit } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ interface Listing {
   descriptionAr?: string | null;
   categorySlug: string;
   categoryNameAr?: string | null;
+  categorySection?: string | null;
   price?: number | null;
   priceUnit?: string | null;
   city?: string | null;
@@ -18,6 +19,7 @@ interface Listing {
   sellerName?: string | null;
   imageUrl?: string | null;
   imageUrls?: string[];
+  workingHours?: string | null;
   status: string;
   featured: boolean;
   createdAt: string;
@@ -28,24 +30,21 @@ interface ListingCardProps {
   showStatus?: boolean;
 }
 
-const categoryGradients: Record<string, string> = {
-  "real-estate":    "from-[#E85530]/20 to-[#E85530]/5",
-  "livestock":      "from-[#F5A020]/20 to-[#F5A020]/5",
-  "birds":          "from-[#4A91C8]/20 to-[#4A91C8]/5",
-  "vegetables":     "from-[#3DAA82]/20 to-[#3DAA82]/5",
-  "clothes":        "from-pink-400/20 to-pink-400/5",
-  "home-appliances":"from-[#4A91C8]/20 to-[#4A91C8]/5",
-  "doctors":        "from-[#3DAA82]/20 to-[#3DAA82]/5",
-};
-
-const categoryEmojis: Record<string, string> = {
-  "real-estate":    "🏠",
-  "livestock":      "🐄",
-  "birds":          "🦜",
-  "vegetables":     "🥦",
-  "clothes":        "👗",
-  "home-appliances":"📺",
-  "doctors":        "🩺",
+const CATEGORY_META: Record<string, { gradient: string; emoji: string; serviceAccent?: boolean }> = {
+  "real-estate":     { gradient: "from-orange-500/20 to-orange-500/5",   emoji: "🏠" },
+  "livestock":       { gradient: "from-amber-500/20 to-amber-500/5",     emoji: "🐄" },
+  "birds":           { gradient: "from-sky-500/20 to-sky-500/5",         emoji: "🦜" },
+  "vegetables":      { gradient: "from-emerald-500/20 to-emerald-500/5", emoji: "🥦" },
+  "clothes":         { gradient: "from-pink-500/20 to-pink-500/5",       emoji: "👗" },
+  "home-appliances": { gradient: "from-violet-500/20 to-violet-500/5",   emoji: "📺" },
+  "technicians":     { gradient: "from-teal-500/20 to-teal-500/5",       emoji: "🔧", serviceAccent: true },
+  "restaurants":     { gradient: "from-orange-400/20 to-orange-400/5",   emoji: "🍽️", serviceAccent: true },
+  "quran-teachers":  { gradient: "from-green-600/20 to-green-600/5",     emoji: "📖", serviceAccent: true },
+  "local-shops":     { gradient: "from-indigo-500/20 to-indigo-500/5",   emoji: "🏪", serviceAccent: true },
+  "job-vacancies":   { gradient: "from-slate-500/20 to-slate-500/5",     emoji: "💼", serviceAccent: true },
+  "transportation":  { gradient: "from-yellow-500/20 to-yellow-500/5",   emoji: "🚛", serviceAccent: true },
+  "education":       { gradient: "from-blue-500/20 to-blue-500/5",       emoji: "📚", serviceAccent: true },
+  "doctors":         { gradient: "from-rose-500/20 to-rose-500/5",       emoji: "🩺", serviceAccent: true },
 };
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -68,10 +67,16 @@ function relativeTime(iso: string): string {
 
 export default function ListingCard({ listing, showStatus = false }: ListingCardProps) {
   const whatsappUrl = `https://wa.me/${listing.whatsappNumber.replace(/\D/g, "")}`;
-  const grad = categoryGradients[listing.categorySlug] ?? "from-primary/20 to-primary/5";
-  const emoji = categoryEmojis[listing.categorySlug] ?? "📋";
+  const meta = CATEGORY_META[listing.categorySlug];
+  const grad = meta?.gradient ?? "from-primary/20 to-primary/5";
+  const emoji = meta?.emoji ?? "📋";
   const imageCount = listing.imageUrls?.length ?? (listing.imageUrl ? 1 : 0);
   const status = statusConfig[listing.status];
+  const isService = listing.categorySection === "services" || meta?.serviceAccent;
+  const badgeColor = isService
+    ? "text-teal-700 bg-teal-50 border border-teal-200"
+    : "text-primary bg-primary/10";
+  const whatsappBg = isService ? "bg-teal-600 hover:bg-teal-700" : "bg-[#25D366] hover:bg-[#128C7E]";
 
   return (
     <div
@@ -93,8 +98,6 @@ export default function ListingCard({ listing, showStatus = false }: ListingCard
               <span className="text-6xl opacity-60">{emoji}</span>
             </div>
           )}
-
-          {/* Overlays */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
 
           {listing.featured && (
@@ -102,21 +105,23 @@ export default function ListingCard({ listing, showStatus = false }: ListingCard
               ⭐ مميز
             </span>
           )}
-
+          {isService && (
+            <span className="absolute top-2 right-2 bg-teal-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+              {listing.featured ? "⭐ مميز" : "خدمة"}
+            </span>
+          )}
           {showStatus && status && (
             <span className={`absolute top-2 left-2 text-xs font-bold px-2.5 py-1 rounded-full ${status.className}`}>
               {status.label}
             </span>
           )}
-
           {imageCount > 1 && (
             <span className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
               <Images className="h-3 w-3" />
               {imageCount}
             </span>
           )}
-
-          {listing.price != null && (
+          {!isService && listing.price != null && (
             <span className="absolute bottom-2 right-2 bg-primary text-primary-foreground text-sm font-bold px-3 py-1 rounded-full shadow">
               {listing.price.toLocaleString("ar-EG")}
               {listing.priceUnit && <span className="font-normal text-xs mr-1">{formatPriceUnit(listing.priceUnit)}</span>}
@@ -127,12 +132,10 @@ export default function ListingCard({ listing, showStatus = false }: ListingCard
 
       {/* Content */}
       <div className="p-4 flex flex-col flex-1">
-        {/* Category badge */}
-        <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full self-start mb-2">
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full self-start mb-2 ${badgeColor}`}>
           {listing.categoryNameAr ?? listing.categorySlug}
         </span>
 
-        {/* Title */}
         <Link href={`/listing/${listing.id}`}>
           <h3
             className="font-bold text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug mb-1.5 cursor-pointer text-base"
@@ -142,26 +145,29 @@ export default function ListingCard({ listing, showStatus = false }: ListingCard
           </h3>
         </Link>
 
-        {/* Governorate */}
         {listing.city && (
           <div className="flex items-center gap-1 text-muted-foreground text-sm mb-2" data-testid={`text-governorate-${listing.id}`}>
-            <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-[#E85530]" />
+            <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-orange-500" />
             <span className="line-clamp-1">{listing.city}</span>
           </div>
         )}
 
-        {/* Description */}
         {listing.descriptionAr && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-2 leading-relaxed">
             {listing.descriptionAr}
           </p>
         )}
 
-        {/* Meta */}
         <div className="flex flex-col gap-1.5 mt-auto mb-3">
+          {listing.workingHours && (
+            <div className="flex items-center gap-1.5 text-muted-foreground text-sm" data-testid={`text-hours-${listing.id}`}>
+              <Clock3 className="h-3.5 w-3.5 flex-shrink-0 text-teal-600" />
+              <span className="line-clamp-1">{listing.workingHours}</span>
+            </div>
+          )}
           {listing.location && (
             <div className="flex items-center gap-1.5 text-muted-foreground text-sm" data-testid={`text-location-${listing.id}`}>
-              <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-[#E85530]" />
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-orange-500" />
               <span className="line-clamp-1">{listing.location}</span>
             </div>
           )}
@@ -176,25 +182,15 @@ export default function ListingCard({ listing, showStatus = false }: ListingCard
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex gap-2">
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1"
-            data-testid={`button-whatsapp-${listing.id}`}
-          >
-            <Button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white gap-2 text-sm h-10">
+          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1" data-testid={`button-whatsapp-${listing.id}`}>
+            <Button className={`w-full text-white gap-2 text-sm h-10 ${whatsappBg}`}>
               <MessageCircle className="h-4 w-4" />
               واتساب
             </Button>
           </a>
           {listing.phoneNumber && (
-            <a
-              href={`tel:${listing.phoneNumber}`}
-              data-testid={`button-phone-${listing.id}`}
-            >
+            <a href={`tel:${listing.phoneNumber}`} data-testid={`button-phone-${listing.id}`}>
               <Button variant="outline" size="icon" className="h-10 w-10 border-primary/30 text-primary hover:bg-primary/5">
                 <Phone className="h-4 w-4" />
               </Button>

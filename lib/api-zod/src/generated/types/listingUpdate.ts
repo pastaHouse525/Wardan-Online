@@ -16,6 +16,7 @@ export interface ListingUpdate {
   whatsappNumber?: string;
   sellerName?: string;
   imageUrl?: string;
+  workingHours?: string;
   status?: ListingUpdateStatus;
   featured?: boolean;
 }

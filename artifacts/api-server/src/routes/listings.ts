@@ -28,6 +28,7 @@ function mapListing(r: Record<string, unknown>) {
     descriptionAr: r.description_ar ?? null,
     categorySlug: r.category_slug,
     categoryNameAr: r.category_name_ar ?? null,
+    categorySection: r.category_section ?? null,
     price: r.price ? Number(r.price) : null,
     priceUnit: r.price_unit ?? null,
     city: r.city ?? null,
@@ -37,6 +38,7 @@ function mapListing(r: Record<string, unknown>) {
     sellerName: r.seller_name ?? null,
     imageUrl: urls[0] ?? (r.image_url as string | null) ?? null,
     imageUrls: urls.length ? urls : (r.image_url ? [r.image_url as string] : []),
+    workingHours: r.working_hours ?? null,
     status: r.status,
     featured: r.featured ?? false,
     createdAt: r.created_at,
@@ -47,7 +49,7 @@ function mapListing(r: Record<string, unknown>) {
 router.get("/listings", async (req, res) => {
   try {
     const {
-      category, search, city,
+      category, section, search, city,
       priceMin, priceMax, sortBy,
       page = "1", limit = "20",
     } = req.query as Record<string, string>;
@@ -55,55 +57,60 @@ router.get("/listings", async (req, res) => {
     const limitNum = Math.min(parseInt(limit, 10) || 20, 100);
     const offset = (pageNum - 1) * limitNum;
 
-    const conditions: string[] = ["status = 'approved'"];
+    const conditions: string[] = ["l.status = 'approved'"];
     const params: unknown[] = [];
 
     if (category) {
       params.push(category);
-      conditions.push(`category_slug = $${params.length}`);
+      conditions.push(`l.category_slug = $${params.length}`);
+    }
+    if (section === "marketplace" || section === "services") {
+      params.push(section);
+      conditions.push(`c.section = $${params.length}`);
     }
     if (search) {
-      // Normalise Arabic search: search across title, description, seller name, location
       params.push(`%${search}%`);
       const p = params.length;
       conditions.push(
-        `(title_ar ILIKE $${p} OR description_ar ILIKE $${p} OR seller_name ILIKE $${p} OR location ILIKE $${p})`
+        `(l.title_ar ILIKE $${p} OR l.description_ar ILIKE $${p} OR l.seller_name ILIKE $${p} OR l.location ILIKE $${p})`
       );
     }
     if (city) {
       params.push(city);
-      conditions.push(`city = $${params.length}`);
+      conditions.push(`l.city = $${params.length}`);
     }
     if (priceMin) {
       const min = parseFloat(priceMin);
       if (!isNaN(min)) {
         params.push(min);
-        conditions.push(`price >= $${params.length}`);
+        conditions.push(`l.price >= $${params.length}`);
       }
     }
     if (priceMax) {
       const max = parseFloat(priceMax);
       if (!isNaN(max)) {
         params.push(max);
-        conditions.push(`price <= $${params.length}`);
+        conditions.push(`l.price <= $${params.length}`);
       }
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const orderMap: Record<string, string> = {
-      newest:     "created_at DESC",
-      oldest:     "created_at ASC",
-      price_asc:  "price ASC NULLS LAST",
-      price_desc: "price DESC NULLS LAST",
+      newest:     "l.created_at DESC",
+      oldest:     "l.created_at ASC",
+      price_asc:  "l.price ASC NULLS LAST",
+      price_desc: "l.price DESC NULLS LAST",
     };
-    const orderBy = orderMap[sortBy ?? ""] ?? "created_at DESC";
+    const orderBy = orderMap[sortBy ?? ""] ?? "l.created_at DESC";
 
-    const total = await queryCount(`SELECT COUNT(*) FROM listings ${where}`, params);
+    const fromJoin = `FROM listings l LEFT JOIN categories c ON c.slug = l.category_slug`;
+
+    const total = await queryCount(`SELECT COUNT(*) ${fromJoin} ${where}`, params);
 
     params.push(limitNum, offset);
     const rows = await query(
-      `SELECT * FROM listings ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      `SELECT l.*, c.section AS category_section ${fromJoin} ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
 
@@ -140,7 +147,9 @@ router.get("/listings/counts-by-city", async (req, res) => {
 router.get("/listings/featured", async (req, res) => {
   try {
     const rows = await query(
-      "SELECT * FROM listings WHERE status = 'approved' ORDER BY created_at DESC LIMIT 8"
+      `SELECT l.*, c.section AS category_section
+       FROM listings l LEFT JOIN categories c ON c.slug = l.category_slug
+       WHERE l.status = 'approved' ORDER BY l.created_at DESC LIMIT 8`
     );
     res.json(rows.map(mapListing));
   } catch (err) {
@@ -155,7 +164,12 @@ router.get("/listings/:id", async (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-    const row = await queryOne("SELECT * FROM listings WHERE id = $1", [id]);
+    const row = await queryOne(
+      `SELECT l.*, c.section AS category_section
+       FROM listings l LEFT JOIN categories c ON c.slug = l.category_slug
+       WHERE l.id = $1`,
+      [id]
+    );
     if (!row) { res.status(404).json({ error: "Not found" }); return; }
     res.json(mapListing(row));
   } catch (err) {
@@ -198,7 +212,7 @@ router.post("/listings", async (req, res) => {
     const {
       titleAr, categorySlug, whatsappNumber, phoneNumber,
       descriptionAr, price, priceUnit, location, city,
-      sellerName, imageUrl, imageUrls, disclaimerAcceptedAt,
+      sellerName, imageUrl, imageUrls, workingHours, disclaimerAcceptedAt,
     } = req.body;
 
     // ── 1. Required field validation ─────────────────────────────────────────
@@ -293,8 +307,8 @@ router.post("/listings", async (req, res) => {
       `INSERT INTO listings
         (title_ar, category_slug, category_name_ar, whatsapp_number, phone_number,
          description_ar, price, price_unit, city, location, seller_name,
-         image_url, image_urls, status, featured, disclaimer_accepted_at, ip_address)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',false,$14,$15)
+         image_url, image_urls, working_hours, status, featured, disclaimer_accepted_at, ip_address)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'pending',false,$15,$16)
        RETURNING *`,
       [
         titleAr, categorySlug, cat?.name_ar ?? null,
@@ -307,6 +321,7 @@ router.post("/listings", async (req, res) => {
         sellerName ?? null,
         firstImage,
         urlsArray.length ? JSON.stringify(urlsArray) : null,
+        workingHours ?? null,
         acceptedAt,
         ip,
       ]

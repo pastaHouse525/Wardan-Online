@@ -41,6 +41,13 @@ paths:
       operationId: listCategories
       tags: [categories]
       summary: List all categories
+      parameters:
+        - name: section
+          in: query
+          schema:
+            type: string
+            enum: [marketplace, services]
+          description: Filter by section (marketplace or services)
       responses:
         "200":
           description: List of categories
@@ -61,6 +68,11 @@ paths:
           in: query
           schema:
             type: string
+        - name: section
+          in: query
+          schema:
+            type: string
+            enum: [marketplace, services]
         - name: search
           in: query
           schema:
@@ -350,7 +362,7 @@ components:
 
     Category:
       type: object
-      required: [id, slug, nameAr, nameEn, icon, listingCount]
+      required: [id, slug, nameAr, nameEn, icon, listingCount, section]
       properties:
         id:
           type: integer
@@ -364,6 +376,9 @@ components:
           type: string
         listingCount:
           type: integer
+        section:
+          type: string
+          enum: [marketplace, services]
 
     Listing:
       type: object
@@ -379,6 +394,8 @@ components:
           type: string
         categoryNameAr:
           type: ["string", "null"]
+        categorySection:
+          type: ["string", "null"]
         price:
           type: ["number", "null"]
         priceUnit:
@@ -392,6 +409,8 @@ components:
         sellerName:
           type: ["string", "null"]
         imageUrl:
+          type: ["string", "null"]
+        workingHours:
           type: ["string", "null"]
         status:
           type: string
@@ -433,11 +452,17 @@ components:
           type: string
         location:
           type: string
+        city:
+          type: string
         whatsappNumber:
+          type: string
+        phoneNumber:
           type: string
         sellerName:
           type: string
         imageUrl:
+          type: string
+        workingHours:
           type: string
         disclaimerAcceptedAt:
           type: string
@@ -462,6 +487,8 @@ components:
         sellerName:
           type: string
         imageUrl:
+          type: string
+        workingHours:
           type: string
         status:
           type: string

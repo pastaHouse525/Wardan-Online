@@ -41,11 +41,22 @@ Arabic-language marketplace website with RTL layout, covering 7 categories and a
 
 ## Product
 
-- Home page with hero search and 7 category cards (real estate, livestock, birds, vegetables, clothes, home appliances, doctor appointments)
-- Category browsing with search/filter
-- Listing detail page with WhatsApp contact button
-- Add listing form (creates listings in pending status)
-- Doctor appointments section with direct WhatsApp booking
+Two main sections:
+
+**سوق البيع والشراء (Buy & Sell Marketplace)** — dark green palette:
+- Categories: real-estate, livestock, birds, vegetables, clothes, home-appliances
+- Listings include: price, condition images, WhatsApp contact
+
+**دليل الخدمات (Services Directory)** — teal palette:
+- Categories: technicians, restaurants, quran-teachers, local-shops, job-vacancies, transportation, education, doctors
+- Listings include: service description, working hours, phone, WhatsApp, location
+
+Pages:
+- Home — hero search, marketplace section, services section, latest listings, dual CTA
+- Category browsing (`/category/:slug`) — search/filter, works for both sections
+- Listing detail — shows working hours badge for services, price for marketplace
+- Add listing form — adapts fields dynamically based on selected category section
+- Doctor appointments — `/doctors` (appointments booking, legacy system)
 - Search page across all listings
 - Admin dashboard with stats, listing approval/rejection, and category breakdown
 
@@ -61,6 +72,10 @@ Arabic-language marketplace website with RTL layout, covering 7 categories and a
 - **Auth**: Supabase Auth — admin login at `/api/auth/login` uses `supabase.auth.signInWithPassword()`
 - **Storage**: Supabase Storage bucket `listing-images` — image uploads go directly from frontend browser to Supabase via anon key
 - The `lib/db` Drizzle package connects to the same DATABASE_URL (used for schema reference only — routes use raw SQL)
+- `categories.section` column (`marketplace` | `services`) drives the two-section layout
+- `listings.working_hours` column stores service working hours
+- GET /listings supports `?section=marketplace|services` filter
+- GET /categories supports `?section=marketplace|services` filter
 
 ## Admin Login
 

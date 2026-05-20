@@ -14,9 +14,12 @@ export interface ListingInput {
   price?: number;
   priceUnit?: string;
   location?: string;
+  city?: string;
   whatsappNumber: string;
+  phoneNumber?: string;
   sellerName?: string;
   imageUrl?: string;
+  workingHours?: string;
   /** ISO timestamp of when the user accepted the legal disclaimer */
   disclaimerAcceptedAt: Date;
 }
