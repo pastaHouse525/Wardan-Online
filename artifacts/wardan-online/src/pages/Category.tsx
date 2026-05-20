@@ -80,7 +80,7 @@ export default function Category() {
   const hasFilters = searchQuery || sort !== "newest" || city !== "الكل";
 
   const { data: result, isLoading } = useListListings(
-    { category: slug, search: searchQuery || undefined, city: city !== "الكل" ? city : undefined, limit: 60 },
+    { category: slug, search: searchQuery || undefined, limit: 60, ...( city !== "الكل" ? { city } : {} ) } as Parameters<typeof useListListings>[0],
     { query: { queryKey: ["listings", slug, searchQuery, city] } }
   );
 
@@ -264,7 +264,7 @@ export default function Category() {
                   descriptionAr: listing.descriptionAr ?? null,
                   categoryNameAr: listing.categoryNameAr ?? null,
                   priceUnit: listing.priceUnit ?? null,
-                  city: listing.city ?? null,
+                  city: (listing as { city?: string | null }).city ?? null,
                   location: listing.location ?? null,
                   phoneNumber: (listing as { phoneNumber?: string | null }).phoneNumber ?? null,
                   sellerName: listing.sellerName ?? null,

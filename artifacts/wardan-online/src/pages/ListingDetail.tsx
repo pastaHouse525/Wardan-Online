@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetListing, getGetListingQueryKey } from "@workspace/api-client-react";
 import { formatPriceUnit } from "@/lib/utils";
+import ImageGallery from "@/components/ImageGallery";
 
 export default function ListingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -20,7 +21,12 @@ export default function ListingDetail() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Skeleton className="h-8 w-32 mb-6" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Skeleton className="h-80 rounded-xl" />
+          <div className="space-y-2">
+            <Skeleton className="h-80 rounded-xl" />
+            <div className="flex gap-2">
+              {[1,2,3].map(i => <Skeleton key={i} className="w-16 h-16 rounded-lg" />)}
+            </div>
+          </div>
           <div className="space-y-4">
             <Skeleton className="h-8 w-3/4" />
             <Skeleton className="h-6 w-1/2" />
@@ -52,6 +58,16 @@ export default function ListingDetail() {
     day: "numeric",
   });
 
+  // Extra fields not yet in generated types — cast to access them
+  const extra = listing as unknown as { imageUrls?: string[]; city?: string };
+
+  // Build the images array: prefer imageUrls if present, otherwise fall back to imageUrl
+  const imageUrls: string[] = Array.isArray(extra.imageUrls) && extra.imageUrls.length > 0
+    ? extra.imageUrls
+    : listing.imageUrl
+      ? [listing.imageUrl]
+      : [];
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Breadcrumb */}
@@ -70,21 +86,8 @@ export default function ListingDetail() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Image */}
-        <div className="rounded-xl overflow-hidden bg-muted h-80 md:h-auto">
-          {listing.imageUrl ? (
-            <img
-              src={listing.imageUrl}
-              alt={listing.titleAr}
-              className="w-full h-full object-cover"
-              data-testid="img-listing"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-              <Tag className="h-20 w-20 text-primary/30" />
-            </div>
-          )}
-        </div>
+        {/* Gallery */}
+        <ImageGallery images={imageUrls} alt={listing.titleAr} />
 
         {/* Details */}
         <div className="space-y-4">
@@ -99,17 +102,21 @@ export default function ListingDetail() {
             <div className="flex items-center gap-2 text-primary font-bold text-2xl" data-testid="text-listing-price">
               <DollarSign className="h-6 w-6" />
               <span>{Number(listing.price).toLocaleString("ar-EG")}</span>
-              {listing.priceUnit && <span className="text-base font-normal text-muted-foreground">{formatPriceUnit(listing.priceUnit)}</span>}
+              {listing.priceUnit && (
+                <span className="text-base font-normal text-muted-foreground">
+                  {formatPriceUnit(listing.priceUnit)}
+                </span>
+              )}
             </div>
           )}
 
-          {(listing.city || listing.location) && (
+          {(extra.city || listing.location) && (
             <div className="flex items-center gap-2 text-muted-foreground" data-testid="text-listing-location">
               <MapPin className="h-5 w-5 text-primary flex-shrink-0" />
               <span>
-                {listing.city && listing.location
-                  ? `${listing.city} - ${listing.location}`
-                  : listing.city ?? listing.location}
+                {extra.city && listing.location
+                  ? `${extra.city} - ${listing.location}`
+                  : extra.city ?? listing.location}
               </span>
             </div>
           )}

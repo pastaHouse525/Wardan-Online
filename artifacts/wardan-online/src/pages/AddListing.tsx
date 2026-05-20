@@ -65,6 +65,8 @@ interface UploadedImage {
   url: string | null;
   uploading: boolean;
   error: string | null;
+  phase?: "compressing" | "uploading";
+  percent?: number;
 }
 
 function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }) {
@@ -114,27 +116,36 @@ export default function AddListing() {
       url: null,
       uploading: true,
       error: null,
+      phase: "compressing" as const,
+      percent: 0,
     }));
 
     setImages((prev) => [...prev, ...newImages]);
     if (fileInputRef.current) fileInputRef.current.value = "";
 
-    for (const img of newImages) {
-      try {
-        const url = await uploadListingImage(img.file);
-        setImages((prev) =>
-          prev.map((i) => i.id === img.id ? { ...i, url, uploading: false } : i)
-        );
-      } catch {
-        setImages((prev) =>
-          prev.map((i) =>
-            i.id === img.id
-              ? { ...i, uploading: false, error: "فشل الرفع" }
-              : i
-          )
-        );
-      }
-    }
+    // Upload all images in parallel
+    await Promise.all(
+      newImages.map(async (img) => {
+        try {
+          const url = await uploadListingImage(img.file, ({ phase, percent }) => {
+            setImages((prev) =>
+              prev.map((i) => i.id === img.id ? { ...i, phase, percent } : i)
+            );
+          });
+          setImages((prev) =>
+            prev.map((i) => i.id === img.id ? { ...i, url, uploading: false, phase: undefined, percent: undefined } : i)
+          );
+        } catch {
+          setImages((prev) =>
+            prev.map((i) =>
+              i.id === img.id
+                ? { ...i, uploading: false, error: "فشل الرفع", phase: undefined }
+                : i
+            )
+          );
+        }
+      })
+    );
   };
 
   const removeImage = (id: string) => {
@@ -422,8 +433,19 @@ export default function AddListing() {
 
                     {/* Overlay */}
                     {img.uploading && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <Loader2 className="h-8 w-8 text-white animate-spin" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 gap-1.5 p-2">
+                        <Loader2 className="h-6 w-6 text-white animate-spin shrink-0" />
+                        <span className="text-white text-xs font-semibold text-center leading-tight">
+                          {img.phase === "compressing" ? "ضغط الصورة…" : "رفع…"}
+                        </span>
+                        {(img.percent ?? 0) > 0 && (
+                          <div className="w-full bg-white/30 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-white h-full rounded-full transition-all duration-200"
+                              style={{ width: `${img.percent}%` }}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                     {img.error && (

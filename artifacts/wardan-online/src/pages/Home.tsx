@@ -129,7 +129,7 @@ export default function Home() {
                 descriptionAr: listing.descriptionAr ?? null,
                 categoryNameAr: listing.categoryNameAr ?? null,
                 priceUnit: listing.priceUnit ?? null,
-                city: listing.city ?? null,
+                city: (listing as { city?: string | null }).city ?? null,
                 location: listing.location ?? null,
                 sellerName: listing.sellerName ?? null,
                 imageUrl: listing.imageUrl ?? null,

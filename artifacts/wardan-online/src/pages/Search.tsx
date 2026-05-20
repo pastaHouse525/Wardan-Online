@@ -27,8 +27,8 @@ export default function Search() {
   const { data: result, isLoading } = useListListings(
     {
       search: query || undefined,
-      city: city !== "الكل" ? city : undefined,
       limit: 60,
+      ...( city !== "الكل" ? { city } : {} ),
     },
     {
       query: {
