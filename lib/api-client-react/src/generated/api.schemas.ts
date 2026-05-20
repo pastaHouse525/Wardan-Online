@@ -151,9 +151,22 @@ export type ListListingsParams = {
 category?: string;
 search?: string;
 city?: string;
+priceMin?: number;
+priceMax?: number;
+sortBy?: ListListingsSortBy;
 page?: number;
 limit?: number;
 };
+
+export type ListListingsSortBy = typeof ListListingsSortBy[keyof typeof ListListingsSortBy];
+
+
+export const ListListingsSortBy = {
+  newest: 'newest',
+  oldest: 'oldest',
+  price_asc: 'price_asc',
+  price_desc: 'price_desc',
+} as const;
 
 export type SearchListingsParams = {
 q: string;

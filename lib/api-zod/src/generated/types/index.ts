@@ -21,4 +21,5 @@ export * from './listingStatus';
 export * from './listingUpdate';
 export * from './listingUpdateStatus';
 export * from './listListingsParams';
+export * from './listListingsSortBy';
 export * from './searchListingsParams';

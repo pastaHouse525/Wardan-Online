@@ -38,6 +38,9 @@ export const ListListingsQueryParams = zod.object({
   "category": zod.coerce.string().optional(),
   "search": zod.coerce.string().optional(),
   "city": zod.coerce.string().optional(),
+  "priceMin": zod.coerce.number().optional(),
+  "priceMax": zod.coerce.number().optional(),
+  "sortBy": zod.enum(['newest', 'oldest', 'price_asc', 'price_desc']).optional(),
   "page": zod.coerce.number().optional(),
   "limit": zod.coerce.number().optional()
 })

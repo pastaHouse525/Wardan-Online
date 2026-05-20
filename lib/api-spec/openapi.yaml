@@ -69,6 +69,19 @@ paths:
           in: query
           schema:
             type: string
+        - name: priceMin
+          in: query
+          schema:
+            type: number
+        - name: priceMax
+          in: query
+          schema:
+            type: number
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [newest, oldest, price_asc, price_desc]
         - name: page
           in: query
           schema:

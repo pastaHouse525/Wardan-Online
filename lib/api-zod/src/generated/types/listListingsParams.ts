@@ -5,11 +5,15 @@
  * Wardan Online Arabic Marketplace API
  * OpenAPI spec version: 0.1.0
  */
+import type { ListListingsSortBy } from './listListingsSortBy';
 
 export type ListListingsParams = {
 category?: string;
 search?: string;
 city?: string;
+priceMin?: number;
+priceMax?: number;
+sortBy?: ListListingsSortBy;
 page?: number;
 limit?: number;
 };

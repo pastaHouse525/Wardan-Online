@@ -46,7 +46,11 @@ function mapListing(r: Record<string, unknown>) {
 // GET /listings — list approved listings with optional filters
 router.get("/listings", async (req, res) => {
   try {
-    const { category, search, city, page = "1", limit = "20" } = req.query as Record<string, string>;
+    const {
+      category, search, city,
+      priceMin, priceMax, sortBy,
+      page = "1", limit = "20",
+    } = req.query as Record<string, string>;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(parseInt(limit, 10) || 20, 100);
     const offset = (pageNum - 1) * limitNum;
@@ -59,21 +63,47 @@ router.get("/listings", async (req, res) => {
       conditions.push(`category_slug = $${params.length}`);
     }
     if (search) {
+      // Normalise Arabic search: search across title, description, seller name, location
       params.push(`%${search}%`);
-      conditions.push(`(title_ar ILIKE $${params.length} OR description_ar ILIKE $${params.length})`);
+      const p = params.length;
+      conditions.push(
+        `(title_ar ILIKE $${p} OR description_ar ILIKE $${p} OR seller_name ILIKE $${p} OR location ILIKE $${p})`
+      );
     }
     if (city) {
       params.push(city);
       conditions.push(`city = $${params.length}`);
     }
+    if (priceMin) {
+      const min = parseFloat(priceMin);
+      if (!isNaN(min)) {
+        params.push(min);
+        conditions.push(`price >= $${params.length}`);
+      }
+    }
+    if (priceMax) {
+      const max = parseFloat(priceMax);
+      if (!isNaN(max)) {
+        params.push(max);
+        conditions.push(`price <= $${params.length}`);
+      }
+    }
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const orderMap: Record<string, string> = {
+      newest:     "created_at DESC",
+      oldest:     "created_at ASC",
+      price_asc:  "price ASC NULLS LAST",
+      price_desc: "price DESC NULLS LAST",
+    };
+    const orderBy = orderMap[sortBy ?? ""] ?? "created_at DESC";
 
     const total = await queryCount(`SELECT COUNT(*) FROM listings ${where}`, params);
 
     params.push(limitNum, offset);
     const rows = await query(
-      `SELECT * FROM listings ${where} ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      `SELECT * FROM listings ${where} ORDER BY ${orderBy} LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
 
