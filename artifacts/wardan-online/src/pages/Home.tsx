@@ -63,7 +63,7 @@ export default function Home() {
             سوق وردان الإلكتروني الشامل
           </div>
           <h1 className="text-4xl md:text-5xl font-black mb-4 leading-tight" data-testid="text-hero-title">
-            بيع، اشتر، وابحث عن الخدمات
+            بيع و اشتري و ابحث عن الخدمات
           </h1>
           <p className="text-lg text-primary-foreground/80 mb-8">
             سوق بيع وشراء + دليل خدمات في منطقة وردان — كل شيء في مكان واحد
