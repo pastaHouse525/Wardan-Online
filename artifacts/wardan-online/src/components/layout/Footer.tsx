@@ -43,7 +43,6 @@ export default function Footer() {
               <li><Link href="/category/vegetables" className="hover:text-white transition-colors">خضروات</Link></li>
               <li><Link href="/category/clothes" className="hover:text-white transition-colors">ملابس</Link></li>
               <li><Link href="/category/home-appliances" className="hover:text-white transition-colors">أجهزة منزلية</Link></li>
-              <li><Link href="/admin" className="hover:text-white transition-colors">لوحة الإدارة</Link></li>
             </ul>
           </div>
         </div>

@@ -22,7 +22,6 @@ export default function Navbar() {
     { href: "/category/livestock", label: "مواشي" },
     { href: "/category/birds", label: "طيور" },
     { href: "/doctors", label: "مواعيد طبية" },
-    { href: "/admin", label: "الإدارة" },
   ];
 
   return (
