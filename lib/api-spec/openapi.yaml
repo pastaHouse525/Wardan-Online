@@ -418,7 +418,7 @@ components:
 
     ListingInput:
       type: object
-      required: [titleAr, categorySlug, whatsappNumber]
+      required: [titleAr, categorySlug, whatsappNumber, disclaimerAcceptedAt]
       properties:
         titleAr:
           type: string
@@ -439,6 +439,10 @@ components:
           type: string
         imageUrl:
           type: string
+        disclaimerAcceptedAt:
+          type: string
+          format: date-time
+          description: ISO timestamp of when the user accepted the legal disclaimer
 
     ListingUpdate:
       type: object

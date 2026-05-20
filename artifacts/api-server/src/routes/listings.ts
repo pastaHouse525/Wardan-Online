@@ -170,7 +170,7 @@ router.post("/listings", async (req, res) => {
     const {
       titleAr, categorySlug, whatsappNumber, phoneNumber,
       descriptionAr, price, priceUnit, location, city,
-      sellerName, imageUrl, imageUrls,
+      sellerName, imageUrl, imageUrls, disclaimerAcceptedAt,
     } = req.body;
 
     if (!titleAr || !categorySlug || !whatsappNumber) {
@@ -178,6 +178,14 @@ router.post("/listings", async (req, res) => {
     }
     if (!city || !EGYPT_GOVERNORATES.has(city)) {
       return res.status(400).json({ error: "يجب اختيار محافظة صحيحة من القائمة" });
+    }
+    if (!disclaimerAcceptedAt) {
+      return res.status(400).json({ error: "يجب الموافقة على إقرار المسؤولية قبل النشر" });
+    }
+
+    const acceptedAt = new Date(disclaimerAcceptedAt as string);
+    if (isNaN(acceptedAt.getTime())) {
+      return res.status(400).json({ error: "تاريخ قبول الإقرار غير صحيح" });
     }
 
     const cat = await queryOne<{ name_ar: string }>(
@@ -191,8 +199,8 @@ router.post("/listings", async (req, res) => {
       `INSERT INTO listings
         (title_ar, category_slug, category_name_ar, whatsapp_number, phone_number,
          description_ar, price, price_unit, city, location, seller_name,
-         image_url, image_urls, status, featured)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',false)
+         image_url, image_urls, status, featured, disclaimer_accepted_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending',false,$14)
        RETURNING *`,
       [
         titleAr, categorySlug, cat?.name_ar ?? null,
@@ -205,6 +213,7 @@ router.post("/listings", async (req, res) => {
         sellerName ?? null,
         firstImage,
         urlsArray.length ? JSON.stringify(urlsArray) : null,
+        acceptedAt,
       ]
     );
     if (!row) throw new Error("Insert returned no row");

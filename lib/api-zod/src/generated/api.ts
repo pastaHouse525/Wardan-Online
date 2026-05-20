@@ -84,7 +84,8 @@ export const CreateListingBody = zod.object({
   "location": zod.string().optional(),
   "whatsappNumber": zod.string(),
   "sellerName": zod.string().optional(),
-  "imageUrl": zod.string().optional()
+  "imageUrl": zod.string().optional(),
+  "disclaimerAcceptedAt": zod.coerce.date().describe('ISO timestamp of when the user accepted the legal disclaimer')
 })
 
 

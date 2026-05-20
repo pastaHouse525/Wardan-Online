@@ -4,11 +4,12 @@ import { z } from "zod";
 import { useLocation } from "wouter";
 import {
   Plus, CheckCircle, ImagePlus, Loader2, Trash2,
-  MapPin, Phone, MessageCircle, DollarSign, Tag, FileText, User,
+  MapPin, Phone, MessageCircle, DollarSign, Tag, FileText, User, ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
@@ -24,6 +25,9 @@ import { PRICE_UNIT_OPTIONS } from "@/lib/utils";
 
 const MAX_IMAGES = 5;
 
+const DISCLAIMER_TEXT =
+  "أتعهد بأن جميع المعلومات والصور المضافة صحيحة، وأتحمل كامل المسؤولية القانونية عنها، ولا يتحمل موقع وردان أونلاين أي مسؤولية عن عمليات البيع أو الشراء أو أي حالات غش أو نصب أو معلومات غير صحيحة.";
+
 const schema = z.object({
   titleAr: z.string().min(3, "العنوان يجب أن يكون 3 أحرف على الأقل"),
   categorySlug: z.string().min(1, "اختر التصنيف"),
@@ -35,6 +39,9 @@ const schema = z.object({
   sellerName: z.string().optional(),
   phoneNumber: z.string().optional(),
   whatsappNumber: z.string().min(7, "رقم واتساب غير صحيح"),
+  disclaimerAccepted: z.literal(true, {
+    errorMap: () => ({ message: "يجب قبول إقرار المسؤولية للمتابعة" }),
+  }),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -92,6 +99,7 @@ export default function AddListing() {
       titleAr: "", categorySlug: "", descriptionAr: "",
       price: "", priceUnit: "EGP", city: "", location: "",
       sellerName: "", phoneNumber: "", whatsappNumber: "",
+      disclaimerAccepted: false as unknown as true,
     },
   });
 
@@ -171,6 +179,7 @@ export default function AddListing() {
           location: data.location || undefined,
           sellerName: data.sellerName || undefined,
           imageUrl: uploadedUrls[0] || undefined,
+          disclaimerAcceptedAt: new Date().toISOString(),
           // Pass extra fields via the existing body — the server accepts them
           ...({ phoneNumber: data.phoneNumber || undefined } as object),
           ...({ city: data.city || undefined } as object),
@@ -548,6 +557,48 @@ export default function AddListing() {
                 )} />
               </div>
             </div>
+          </div>
+
+          {/* ── Section 6: Legal Disclaimer ───── */}
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 shadow-sm">
+            <SectionHeader
+              icon={<ShieldCheck className="h-4 w-4 text-amber-600" />}
+              title="إقرار المسؤولية القانونية"
+            />
+
+            <div className="bg-white border border-amber-200 rounded-xl p-4 mb-5">
+              <p className="text-sm leading-relaxed text-foreground/80">
+                {DISCLAIMER_TEXT}
+              </p>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="disclaimerAccepted"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-start gap-3">
+                    <FormControl>
+                      <Checkbox
+                        id="disclaimer-checkbox"
+                        checked={field.value === true}
+                        onCheckedChange={(checked) => field.onChange(checked === true ? true : false)}
+                        className="mt-0.5 h-5 w-5 border-amber-400 data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0"
+                        data-testid="checkbox-disclaimer"
+                      />
+                    </FormControl>
+                    <FormLabel
+                      htmlFor="disclaimer-checkbox"
+                      className="text-sm font-semibold leading-relaxed cursor-pointer select-none"
+                    >
+                      أقر وأوافق على هذا الإقرار، وأتحمل كامل المسؤولية القانونية عن الإعلان المنشور
+                      <span className="text-destructive mr-1">*</span>
+                    </FormLabel>
+                  </div>
+                  <FormMessage className="mt-2 text-sm font-medium" />
+                </FormItem>
+              )}
+            />
           </div>
 
           {/* ── Submit ───────────────────────────── */}

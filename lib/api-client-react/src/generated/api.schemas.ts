@@ -71,6 +71,8 @@ export interface ListingInput {
   whatsappNumber: string;
   sellerName?: string;
   imageUrl?: string;
+  /** ISO timestamp of when the user accepted the legal disclaimer */
+  disclaimerAcceptedAt: string;
 }
 
 export type ListingUpdateStatus = typeof ListingUpdateStatus[keyof typeof ListingUpdateStatus];

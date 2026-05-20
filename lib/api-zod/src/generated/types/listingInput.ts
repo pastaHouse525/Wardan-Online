@@ -17,4 +17,6 @@ export interface ListingInput {
   whatsappNumber: string;
   sellerName?: string;
   imageUrl?: string;
+  /** ISO timestamp of when the user accepted the legal disclaimer */
+  disclaimerAcceptedAt: Date;
 }
