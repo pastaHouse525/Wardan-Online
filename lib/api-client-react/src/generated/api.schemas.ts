@@ -142,6 +142,11 @@ export interface AdminStats {
   listingsByCategory: CategoryCount[];
 }
 
+export interface CityCount {
+  city: string;
+  count: number;
+}
+
 export type ListListingsParams = {
 category?: string;
 search?: string;

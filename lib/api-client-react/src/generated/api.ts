@@ -25,6 +25,7 @@ import type {
   Appointment,
   AppointmentInput,
   Category,
+  CityCount,
   HealthStatus,
   ListListingsParams,
   Listing,
@@ -640,6 +641,83 @@ export function useListFeaturedListings<TData = Awaited<ReturnType<typeof listFe
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListFeaturedListingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListingCountsByCityUrl = () => {
+
+
+
+
+  return `/api/listings/counts-by-city`
+}
+
+/**
+ * @summary Get approved listing counts grouped by city/governorate
+ */
+export const listingCountsByCity = async ( options?: RequestInit): Promise<CityCount[]> => {
+
+  return customFetch<CityCount[]>(getListingCountsByCityUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListingCountsByCityQueryKey = () => {
+    return [
+    `/api/listings/counts-by-city`
+    ] as const;
+    }
+
+
+export const getListingCountsByCityQueryOptions = <TData = Awaited<ReturnType<typeof listingCountsByCity>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listingCountsByCity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListingCountsByCityQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listingCountsByCity>>> = ({ signal }) => listingCountsByCity({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listingCountsByCity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListingCountsByCityQueryResult = NonNullable<Awaited<ReturnType<typeof listingCountsByCity>>>
+export type ListingCountsByCityQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get approved listing counts grouped by city/governorate
+ */
+
+export function useListingCountsByCity<TData = Awaited<ReturnType<typeof listingCountsByCity>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listingCountsByCity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListingCountsByCityQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -4,7 +4,7 @@ import { Search, Home as HomeIcon, Beef, Bird, Leaf, Shirt, Tv, Stethoscope, Plu
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useListCategories, useListFeaturedListings } from "@workspace/api-client-react";
+import { useListCategories, useListFeaturedListings, useListingCountsByCity } from "@workspace/api-client-react";
 import ListingCard from "@/components/ListingCard";
 import EgyptMap from "@/components/EgyptMap";
 
@@ -35,6 +35,11 @@ export default function Home() {
 
   const { data: categories, isLoading: categoriesLoading } = useListCategories();
   const { data: featured, isLoading: featuredLoading } = useListFeaturedListings();
+  const { data: cityCounts } = useListingCountsByCity();
+
+  const countsByCity = Object.fromEntries(
+    (cityCounts ?? []).map((c) => [c.city, c.count])
+  );
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +98,7 @@ export default function Home() {
               <EgyptMap
                 selectedGovernorate={mapGovernorate}
                 onSelectGovernorate={setMapGovernorate}
+                countsByCity={countsByCity}
                 className="w-full"
               />
             </div>

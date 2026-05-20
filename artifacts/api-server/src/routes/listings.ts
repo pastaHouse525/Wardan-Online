@@ -89,6 +89,23 @@ router.get("/listings", async (req, res) => {
   }
 });
 
+// GET /listings/counts-by-city — approved listing counts grouped by governorate
+router.get("/listings/counts-by-city", async (req, res) => {
+  try {
+    const rows = await query<{ city: string; count: string }>(
+      `SELECT city, COUNT(*) AS count
+       FROM listings
+       WHERE status = 'approved' AND city IS NOT NULL AND city <> ''
+       GROUP BY city
+       ORDER BY count DESC`
+    );
+    res.json(rows.map((r) => ({ city: r.city, count: Number(r.count) })));
+  } catch (err) {
+    req.log.error({ err }, "Failed to get listing counts by city");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // GET /listings/featured — latest 8 approved listings
 router.get("/listings/featured", async (req, res) => {
   try {

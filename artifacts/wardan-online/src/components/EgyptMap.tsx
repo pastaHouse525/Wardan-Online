@@ -247,15 +247,26 @@ const GOV_ARABIC_TO_ID: Record<string, string> = Object.fromEntries(
   GOVERNORATES.map((g) => [g.nameAr, g.id])
 );
 
+function interpolateColor(ratio: number): string {
+  const r0 = 220, g0 = 252, b0 = 231;
+  const r1 = 20, g1 = 83, b1 = 45;
+  const r = Math.round(r0 + (r1 - r0) * ratio);
+  const g = Math.round(g0 + (g1 - g0) * ratio);
+  const b = Math.round(b0 + (b1 - b0) * ratio);
+  return `rgb(${r},${g},${b})`;
+}
+
 interface EgyptMapProps {
   selectedGovernorate?: string | null;
   onSelectGovernorate: (nameAr: string | null) => void;
+  countsByCity?: Record<string, number>;
   className?: string;
 }
 
 export default function EgyptMap({
   selectedGovernorate,
   onSelectGovernorate,
+  countsByCity = {},
   className = "",
 }: EgyptMapProps) {
   const [hovered, setHovered] = useState<string | null>(null);
@@ -264,10 +275,20 @@ export default function EgyptMap({
     ? (GOV_ARABIC_TO_ID[selectedGovernorate] ?? null)
     : null;
 
-  const getFill = (id: string) => {
+  const maxCount = Math.max(1, ...Object.values(countsByCity));
+
+  const getHeatFill = (nameAr: string) => {
+    const count = countsByCity[nameAr] ?? 0;
+    if (count === 0) return "#dcfce7";
+    const ratio = Math.min(count / maxCount, 1);
+    const clamped = 0.15 + ratio * 0.85;
+    return interpolateColor(clamped);
+  };
+
+  const getFill = (id: string, nameAr: string) => {
     if (id === selectedId) return "#166534";
     if (id === hovered) return "#16a34a";
-    return "#dcfce7";
+    return getHeatFill(nameAr);
   };
 
   const getStroke = (id: string) => {
@@ -276,9 +297,11 @@ export default function EgyptMap({
     return "#86efac";
   };
 
-  const getTextFill = (id: string) => {
+  const getTextFill = (id: string, nameAr: string) => {
     if (id === selectedId || id === hovered) return "#ffffff";
-    return "#166534";
+    const count = countsByCity[nameAr] ?? 0;
+    const ratio = count / maxCount;
+    return ratio > 0.5 ? "#ffffff" : "#166534";
   };
 
   const handleClick = (nameAr: string) => {
@@ -294,52 +317,77 @@ export default function EgyptMap({
         role="img"
         aria-label="خريطة مصر التفاعلية"
       >
-        {GOVERNORATES.map((gov) => (
-          <g
-            key={gov.id}
-            className="cursor-pointer"
-            onClick={() => handleClick(gov.nameAr)}
-            onMouseEnter={() => setHovered(gov.id)}
-            onMouseLeave={() => setHovered(null)}
-            role="button"
-            aria-label={gov.nameAr}
-            aria-pressed={gov.id === selectedId}
-          >
-            <path
-              d={gov.d}
-              fill={getFill(gov.id)}
-              stroke={getStroke(gov.id)}
-              strokeWidth="1.2"
-              style={{ transition: "fill 0.12s, stroke 0.12s" }}
-            />
-            <text
-              x={gov.labelX}
-              y={gov.labelY}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={gov.fontSize ?? 9}
-              fontWeight={gov.id === selectedId ? "700" : "500"}
-              fill={getTextFill(gov.id)}
-              style={{
-                pointerEvents: "none",
-                transition: "fill 0.12s",
-                userSelect: "none",
-              }}
+        {GOVERNORATES.map((gov) => {
+          const count = countsByCity[gov.nameAr] ?? 0;
+          const fontSize = gov.fontSize ?? 9;
+          const textColor = getTextFill(gov.id, gov.nameAr);
+          return (
+            <g
+              key={gov.id}
+              className="cursor-pointer"
+              onClick={() => handleClick(gov.nameAr)}
+              onMouseEnter={() => setHovered(gov.id)}
+              onMouseLeave={() => setHovered(null)}
+              role="button"
+              aria-label={`${gov.nameAr}${count > 0 ? ` — ${count} إعلان` : ""}`}
+              aria-pressed={gov.id === selectedId}
             >
-              {gov.nameAr}
-            </text>
-          </g>
-        ))}
+              <path
+                d={gov.d}
+                fill={getFill(gov.id, gov.nameAr)}
+                stroke={getStroke(gov.id)}
+                strokeWidth="1.2"
+                style={{ transition: "fill 0.12s, stroke 0.12s" }}
+              />
+              <text
+                x={gov.labelX}
+                y={count > 0 ? gov.labelY - 3 : gov.labelY}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={fontSize}
+                fontWeight={gov.id === selectedId ? "700" : "500"}
+                fill={textColor}
+                style={{
+                  pointerEvents: "none",
+                  transition: "fill 0.12s",
+                  userSelect: "none",
+                }}
+              >
+                {gov.nameAr}
+              </text>
+              {count > 0 && (
+                <text
+                  x={gov.labelX}
+                  y={gov.labelY + fontSize - 1}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={Math.max(fontSize - 2, 6)}
+                  fontWeight="700"
+                  fill={textColor}
+                  style={{
+                    pointerEvents: "none",
+                    transition: "fill 0.12s",
+                    userSelect: "none",
+                  }}
+                >
+                  {count}
+                </text>
+              )}
+            </g>
+          );
+        })}
       </svg>
 
       {selectedGovernorate && (
         <div className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none">
           <span className="bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full shadow-md">
             {selectedGovernorate}
+            {(countsByCity[selectedGovernorate] ?? 0) > 0 && (
+              <> — {countsByCity[selectedGovernorate]} إعلان</>
+            )}
           </span>
         </div>
       )}
     </div>
   );
 }
-

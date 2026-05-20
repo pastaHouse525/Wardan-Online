@@ -12,6 +12,7 @@ export * from './appointment';
 export * from './appointmentInput';
 export * from './category';
 export * from './categoryCount';
+export * from './cityCount';
 export * from './healthStatus';
 export * from './listing';
 export * from './listingInput';

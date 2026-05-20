@@ -182,6 +182,16 @@ export const ListFeaturedListingsResponse = zod.array(ListFeaturedListingsRespon
 
 
 /**
+ * @summary Get approved listing counts grouped by city/governorate
+ */
+export const ListingCountsByCityResponseItem = zod.object({
+  "city": zod.string(),
+  "count": zod.number()
+})
+export const ListingCountsByCityResponse = zod.array(ListingCountsByCityResponseItem)
+
+
+/**
  * @summary Search listings
  */
 export const SearchListingsQueryParams = zod.object({

@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useListListings } from "@workspace/api-client-react";
+import { useListListings, useListingCountsByCity } from "@workspace/api-client-react";
 import ListingCard from "@/components/ListingCard";
 import EgyptMap from "@/components/EgyptMap";
 import { EGYPT_GOVERNORATES } from "@/lib/governorates";
@@ -81,6 +81,11 @@ export default function Category() {
   }, []);
 
   const hasFilters = searchQuery || sort !== "newest" || city !== "الكل";
+
+  const { data: cityCounts } = useListingCountsByCity();
+  const countsByCity = Object.fromEntries(
+    (cityCounts ?? []).map((c) => [c.city, c.count])
+  );
 
   const { data: result, isLoading } = useListListings(
     { category: slug, search: searchQuery || undefined, city: city !== "الكل" ? city : undefined, limit: 60 },
@@ -180,6 +185,7 @@ export default function Category() {
                 <EgyptMap
                   selectedGovernorate={city !== "الكل" ? city : null}
                   onSelectGovernorate={(gov) => setCity(gov ?? "الكل")}
+                  countsByCity={countsByCity}
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground text-center mt-1">انقر على محافظة للتصفية</p>
