@@ -11,6 +11,7 @@ import {
 import { useListListings } from "@workspace/api-client-react";
 import ListingCard from "@/components/ListingCard";
 import { EGYPT_GOVERNORATES } from "@/lib/governorates";
+import SEOMeta from "@/components/SEOMeta";
 
 const CATEGORIES: Record<string, { nameAr: string; emoji: string; gradient: string; description: string; section: "marketplace" | "services" }> = {
   "real-estate":     { nameAr: "عقارات",                 emoji: "🏠", gradient: "from-orange-500 to-red-600",     description: "شقق، فلل، أراضي، محلات تجارية",   section: "marketplace" },
@@ -105,6 +106,19 @@ export default function Category() {
 
   return (
     <div>
+      <SEOMeta
+        title={`${cat?.emoji ?? ""} ${nameAr} في وردان`}
+        description={`${cat?.description ?? nameAr} في منطقة وردان، الجيزة، مصر. تصفح ${total} إعلان في تصنيف ${nameAr}.`}
+        url={`/category/${slug}`}
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: `${nameAr} — وردان أونلاين`,
+          description: cat?.description ?? nameAr,
+          url: `https://wardanonline.com/category/${slug}`,
+          inLanguage: "ar",
+        }}
+      />
       {/* ── Hero ──────────────────────────────────────────────── */}
       <div className={`bg-gradient-to-l ${cat?.gradient ?? "from-primary to-primary/70"} text-white`}>
         <div className="max-w-7xl mx-auto px-4 py-10">

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListCategories, useListFeaturedListings } from "@workspace/api-client-react";
 import ListingCard from "@/components/ListingCard";
+import SEOMeta from "@/components/SEOMeta";
 
 const MARKETPLACE_META: Record<string, { icon: React.ReactNode; gradient: string; emoji: string }> = {
   "real-estate":     { icon: <HomeIcon className="h-7 w-7" />, gradient: "from-orange-500 to-red-600",    emoji: "🏠" },
@@ -52,6 +53,21 @@ export default function Home() {
     <div>
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-gradient-to-bl from-primary via-primary to-green-900 text-primary-foreground">
+        <SEOMeta
+          title="سوق وردان الإلكتروني الشامل"
+          description="بيع واشتري وابحث عن الخدمات في منطقة وردان، الجيزة، مصر. عقارات، مواشي، طيور، خضروات، ملابس، أجهزة منزلية، مطاعم، فنيون، تعليم، وأكثر."
+          url="/"
+          structuredData={{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "وردان أونلاين",
+            url: "https://wardanonline.com",
+            logo: "https://wardanonline.com/logo.jpeg",
+            description: "سوق وردان الإلكتروني الشامل في منطقة وردان، الجيزة، مصر",
+            areaServed: { "@type": "City", name: "وردان، الجيزة، مصر" },
+            sameAs: [],
+          }}
+        />
         <div className="absolute inset-0 opacity-10 pointer-events-none select-none">
           <div className="absolute top-6 right-10 text-8xl">🛒</div>
           <div className="absolute bottom-4 left-10 text-7xl">🔧</div>

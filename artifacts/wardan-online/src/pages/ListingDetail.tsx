@@ -13,6 +13,7 @@ import {
 import { formatPriceUnit } from "@/lib/utils";
 import ImageGallery from "@/components/ImageGallery";
 import ListingCard from "@/components/ListingCard";
+import SEOMeta from "@/components/SEOMeta";
 
 // Extra DB fields not yet reflected in generated OpenAPI types
 interface ListingExtra {
@@ -176,8 +177,43 @@ export default function ListingDetail() {
     .filter(l => l.id !== listingId)
     .slice(0, 6);
 
+  const seoImage = imageUrls[0] ?? "https://wardanonline.com/opengraph.jpg";
+  const seoDescription = listing.descriptionAr
+    ? `${listing.descriptionAr.slice(0, 140)}...`
+    : `${listing.titleAr} — ${listing.categorySlug} في منطقة وردان، الجيزة، مصر`;
+
+  const structuredData = isService
+    ? {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        name: listing.titleAr,
+        description: listing.descriptionAr ?? listing.titleAr,
+        image: seoImage,
+        telephone: extra.phoneNumber ?? listing.whatsappNumber,
+        url: `https://wardanonline.com/listing/${listing.id}`,
+        address: { "@type": "PostalAddress", addressLocality: extra.city ?? "وردان", addressCountry: "EG" },
+        ...(extra.workingHours ? { openingHours: extra.workingHours } : {}),
+      }
+    : {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: listing.titleAr,
+        description: listing.descriptionAr ?? listing.titleAr,
+        image: seoImage,
+        url: `https://wardanonline.com/listing/${listing.id}`,
+        ...(listing.price ? { offers: { "@type": "Offer", price: String(listing.price), priceCurrency: "EGP", availability: "https://schema.org/InStock" } } : {}),
+      };
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 pb-28 md:pb-10">
+      <SEOMeta
+        title={listing.titleAr}
+        description={seoDescription}
+        image={seoImage}
+        url={`/listing/${listing.id}`}
+        type="article"
+        structuredData={structuredData}
+      />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-5 flex-wrap">
         <Link href="/" className="hover:text-foreground transition-colors">الرئيسية</Link>

@@ -8,6 +8,7 @@ import adminRouter from "./admin";
 import authRouter from "./auth";
 import uploadRouter from "./upload";
 import storageRouter from "./storage";
+import sitemapRouter from "./sitemap";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(searchRouter);
 router.use(adminRouter);
 router.use(uploadRouter);
 router.use(storageRouter);
+router.use(sitemapRouter);
 
 export default router;
