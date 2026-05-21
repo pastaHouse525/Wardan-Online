@@ -488,22 +488,114 @@ function AllListingsSection({ onInvalidate }: { onInvalidate: () => void }) {
 
 function CategoriesSection() {
   const { data: categories, isLoading } = useListCategories();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
+  const [form, setForm] = useState({ nameAr: "", nameEn: "", slug: "", icon: "📋", section: "marketplace" });
 
   const catEmojis: Record<string, string> = {
     "real-estate": "🏠", "livestock": "🐄", "birds": "🦜",
     "vegetables": "🥦", "clothes": "👗", "home-appliances": "📺", "doctors": "🩺",
   };
 
+  function autoSlug(name: string) {
+    return name.trim().toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await apiFetch("/api/admin/categories", "POST", {
+        nameAr: form.nameAr,
+        nameEn: form.nameEn,
+        slug: form.slug || autoSlug(form.nameAr),
+        icon: form.icon,
+        section: form.section,
+      });
+      toast({ title: "تم إضافة التصنيف بنجاح" });
+      setForm({ nameAr: "", nameEn: "", slug: "", icon: "📋", section: "marketplace" });
+      setShowForm(false);
+      queryClient.invalidateQueries({ queryKey: ["listCategories"] });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "فشل إضافة التصنيف", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(slug: string, listingCount: number) {
+    if (listingCount > 0) {
+      toast({ title: "لا يمكن حذف تصنيف يحتوي على إعلانات", variant: "destructive" }); return;
+    }
+    if (!confirm("هل أنت متأكد من حذف هذا التصنيف؟")) return;
+    setDeletingSlug(slug);
+    try {
+      await apiFetch(`/api/admin/categories/${slug}`, "DELETE");
+      toast({ title: "تم حذف التصنيف" });
+      queryClient.invalidateQueries({ queryKey: ["listCategories"] });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "فشل الحذف", variant: "destructive" });
+    } finally {
+      setDeletingSlug(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">التصنيفات</h2>
-        <Link href="/">
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" /> عرض الموقع
-          </Button>
-        </Link>
+        <Button size="sm" className="gap-1.5" onClick={() => setShowForm(!showForm)}>
+          <Plus className="h-4 w-4" /> إضافة تصنيف
+        </Button>
       </div>
+
+      {showForm && (
+        <form onSubmit={handleAdd} className="bg-card rounded-2xl border p-5 space-y-4">
+          <h3 className="font-bold text-base">تصنيف جديد</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>الاسم بالعربية *</Label>
+              <Input value={form.nameAr} onChange={e => setForm(f => ({ ...f, nameAr: e.target.value, slug: autoSlug(e.target.value) }))} placeholder="مثال: إلكترونيات" required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>الاسم بالإنجليزية</Label>
+              <Input dir="ltr" value={form.nameEn} onChange={e => setForm(f => ({ ...f, nameEn: e.target.value }))} placeholder="e.g. Electronics" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>المعرّف (slug) *</Label>
+              <Input dir="ltr" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} placeholder="electronics" required />
+              <p className="text-xs text-muted-foreground">حروف إنجليزية وأرقام وشرطة فقط</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>الأيقونة (إيموجي)</Label>
+              <Input value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} placeholder="📋" maxLength={4} />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>القسم *</Label>
+              <Select value={form.section} onValueChange={v => setForm(f => ({ ...f, section: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="marketplace">سوق البيع والشراء</SelectItem>
+                  <SelectItem value="services">دليل الخدمات</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button type="button" variant="outline" onClick={() => setShowForm(false)}>إلغاء</Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? <><Loader2 className="h-4 w-4 animate-spin ml-1" /> جاري الحفظ...</> : "حفظ التصنيف"}
+            </Button>
+          </div>
+        </form>
+      )}
+
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
@@ -511,24 +603,28 @@ function CategoriesSection() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {(categories ?? []).map((cat) => (
-            <Link href={`/category/${cat.slug}`} key={cat.slug}>
-              <div className="bg-card rounded-2xl border p-4 hover:shadow-md transition-all group cursor-pointer flex items-center gap-4">
-                <div className={`text-3xl p-3 rounded-xl ${CAT_COLORS[cat.slug] ?? "bg-gray-100"}`}>
-                  {catEmojis[cat.slug] ?? "📋"}
+            <div key={cat.slug} className="bg-card rounded-2xl border p-4 hover:shadow-md transition-all flex items-center gap-4">
+              <Link href={`/category/${cat.slug}`} className="flex items-center gap-4 flex-1 min-w-0">
+                <div className={`text-3xl p-3 rounded-xl shrink-0 ${CAT_COLORS[cat.slug] ?? "bg-gray-100"}`}>
+                  {catEmojis[cat.slug] ?? cat.icon ?? "📋"}
                 </div>
-                <div>
-                  <p className="font-bold text-base">{cat.nameAr}</p>
-                  <p className="text-sm text-muted-foreground">{cat.listingCount} إعلان</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-base truncate">{cat.nameAr}</p>
+                  <p className="text-xs text-muted-foreground">{cat.listingCount} إعلان · {cat.section === "services" ? "خدمات" : "بيع وشراء"}</p>
                 </div>
-                <ChevronLeft className="h-4 w-4 text-muted-foreground mr-auto group-hover:text-primary transition-colors" />
-              </div>
-            </Link>
+              </Link>
+              <Button
+                size="icon" variant="ghost"
+                className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                disabled={deletingSlug === cat.slug}
+                onClick={() => handleDelete(cat.slug, cat.listingCount)}
+              >
+                {deletingSlug === cat.slug ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </Button>
+            </div>
           ))}
         </div>
       )}
-      <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 text-sm text-amber-700">
-        <strong>ملاحظة:</strong> لإدارة التصنيفات (إضافة/حذف)، استخدم لوحة Supabase مباشرة في جدول <code className="bg-amber-100 px-1 rounded">categories</code>.
-      </div>
     </div>
   );
 }
