@@ -2,7 +2,7 @@
   "version": 2,
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/wardan-online run build",
-  "outputDirectory": "artifacts/wardan-online/dist/public",
+  "outputDirectory": "artifacts/wardan-online/dist",
   "trailingSlash": false,
   "functions": {
     "api/index.ts": {
