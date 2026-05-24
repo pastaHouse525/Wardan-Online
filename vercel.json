@@ -3,6 +3,7 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/wardan-online run build",
   "outputDirectory": "artifacts/wardan-online/dist/public",
+  "trailingSlash": false,
   "functions": {
     "api/index.ts": {
       "memory": 512,
